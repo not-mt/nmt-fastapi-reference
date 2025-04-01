@@ -1,0 +1,56 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+  ],
+  "settings": {
+    "files.eol": "\n",
+    "ruff.interpreter": [
+      ".venv/Scripts/python.exe"
+    ],
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.defaultInterpreterPath": ".venv/Scripts/python.exe",
+    "python.autoComplete.extraPaths": [
+      //"./src",
+      //"../nmt-fastapi-library/src",
+    ],
+    "python.analysis.extraPaths": [
+      //"../nmt-fastapi-library/src",
+      //"../src",
+      //"../.venv/Lib/site-packages",
+    ],
+    "files.associations": {
+      "*.env": "shellscript"
+    },
+    "files.exclude": {
+      "**/__pycache__": true,
+      //".mypy_cache": true,
+      //".ruff_cache": true,
+      //".pytest_cache": true,
+      //".pypoetry_cache": true,
+      //".coverage": true,
+    },
+    "workbench.panel.defaultLocation": "bottom",
+    "terminal.integrated.profiles.windows": {
+      "Git Bash (activate.env)": {
+        "path": "C:/Program Files/Git/bin/bash.exe",
+        "args": [
+          "-i",
+          "-c",
+          "'",
+          "bash",
+          "--rcfile",
+          "./.local/activate.env",
+          "||",
+          "bash",
+          "--login",
+          "-i",
+          "'"
+        ]
+      }
+    },
+    "terminal.integrated.defaultProfile.windows": "Git Bash (activate.env)"
+  }
+}

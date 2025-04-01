@@ -1,0 +1,39 @@
+---
+version: 1
+database:
+  url: sqlite+aiosqlite:///./development.sqlite
+auth:
+  swagger_token_url: https://some.domain.tld/api/oidc/token
+  id_providers: {}
+    # some_oidc_provider_here:
+    #   type: jwks
+    #   issuer_regex: '^https://some.domain.tld$'
+    #   jwks_endpoint: https://some.domain.tld/jwks.json
+    #   introspection_enabled: true
+    #   introspection_endpoint: https://some.domain.tld/api/oidc/introspection
+    #   keyid_enabled: false
+    #   keyid_endpoint: https://localhost/not/enabled
+  clients: {}
+    # some_api_client:
+    #   contact: some.user@domain.tld
+    #   memo: This is just some API client
+    #   provider: some_oidc_provider_here
+    #   claims:
+    #     client_id: some_api_client_id_here
+    #   acls:
+    #     - section_regex: '^widgets$'
+    #       permissions: ['*', 'create']
+  api_keys: {}
+    # some_key:
+    #   contact: some.user@domain.tld
+    #   memo: This is just some API key
+    #   algo: argon2
+    #   hash: '$argon2id$v=19$m=65536,t=3,p=4$tWmX...'
+    #   acls:
+    #     - section_regex: '^widgets$'
+    #       permissions: ['*', 'create']
+logging:
+  level: DEBUG
+  loggers:
+    - name: aiosqlite
+      level: INFO

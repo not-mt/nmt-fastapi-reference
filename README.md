@@ -1,0 +1,166 @@
+# nmt-fastapi-reference
+
+A FastAPI-based microservice leveraging the `nmtfast` Python package for structured access control, logging, and <span style="color: red">TODO</span> caching.
+
+## Features
+
+- **OAuth 2.0 & API Key Authentication**: Secure endpoints using `nmtfast`'s authentication and authorization methods.
+- **Role-Based & Resource-Based ACLs**: Fine-grained access control managed via YAML configurations.
+- **Asynchronous API Handling**: Fully async support using FastAPI and SQLAlchemy async drivers.
+- **Structured Logging**: Custom formatting, control over loggers on a per-module basis, and unique IDs recorded for each request.
+- **Docker Support**: <span style="color: red">TODO:</span> Easily deployable with a provided `Dockerfile`.
+- **Merged Configuration Files**: Configuration settings may be merged from multiple sources using `nmtfast`, allowing secrets to be isolated to separate configuration files.
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.12+
+- <span style="color: red">TODO:</span> PostgreSQL (or another supported database)
+- <span style="color: red">TODO:</span> Redis (if using rate-limiting or caching features)
+
+### Prepare Development Environment
+
+Clone the repository and install dependencies using Poetry:
+
+```bash
+git clone https://github.com/not-mt/nmt-fastapi-reference.git
+cd nmt-fastapi-reference
+```
+
+Create a virtual environment and install Poetry:
+
+```bash
+test -d .venv || python -m venv .venv
+source .venv/Scripts/activate
+pip install poetry
+cp samples/poetry.toml .
+```
+
+Install dependencies:
+
+```bash
+poetry install
+```
+
+Install pre-commit:
+
+```bash
+pre-commit install
+```
+
+### OPTIONAL: VS Code (on Windows)
+
+Follow these steps if you are developing on a Windows system and have a bash shell available (most likely from [Git for Windows](https://git-scm.com/downloads/win)).
+
+Copy samples:
+
+```bash
+cp -urv samples/{.local,.vscode,*} .
+```
+
+These files will be excluded by `.gitignore`, and you may customize however you would like. These are the notable files:
+
+- **.local/activate.env**
+  - This file will be sourced in a custom terminal profile (defined in `nmt-fastapi-reference.code-workspace` )
+  - Customize `PROJECTS` to reflect the root path to your software projects
+- **.vscode/launch.json**
+  - Template of how to start the project in VS Code's debugger; adjust if necessary
+- **nmt-fastapi-reference.code-workspace**
+  - Sensible defaults are specified here and may be customized as necessary
+  - A `terminal.integrated.defaultProfile.windows` is set to use the `.local/activate.env` file when starting new terminals
+
+**NOTE:** You can update `PROJECTS` in `.local/activate.env` file manually, or you can use this command to update it for you. This will set the value to the parent directory of your current directory:
+
+```bash
+# get the parent directory, and replace /c/path with C:/path
+rpd=$(dirname "$(pwd)" | sed -E 's|^/([a-z])|\U\1:|')
+sed \
+  -e 's|# export PROJECTS=".*FIXME.*$|export PROJECTS="'"$rpd"'"|' \
+  -i .local/activate.env
+```
+
+Test the activate script:
+
+```bash
+source .local/activate.env
+```
+
+Once files have been customized, you may re-open VS Code using the `nmt-fastapi-reference.code-workspace` file.
+
+### Configuration
+
+This service is configured using YAML configuration files. You may copy the `nmtfast-config-default.yaml` and update as necessary:
+
+```bash
+cp nmtfast-config-default.yaml nmtfast-config-local.yaml
+$EDITOR nmtfast-config-local.yaml
+```
+
+For local testing, you probably only need to generate an API key. A utility is included with this project to generate password hashes:
+
+```bash
+./generate-api-hash.py
+```
+
+Place the generated hash in the `nmtfast-config-local.yaml` config file; for example:
+
+```yaml
+---
+version: 1
+database:
+  url: sqlite+aiosqlite:///./development.sqlite
+auth:
+  swagger_token_url: https://some.domain.tld/api/oidc/token
+  id_providers: {}
+  clients: {}
+  api_keys:
+    some_key:
+      contact: some.user@domain.tld
+      memo: This is just some API key
+      algo: argon2
+      hash: '$argon2id$v=19$m=65536,t=3,p=4$tWmX...'
+      acls:
+        - section_regex: '^widgets$'
+          permissions: ['*', 'create']
+logging:
+  level: DEBUG
+  loggers:
+    - name: aiosqlite
+      level: INFO
+```
+
+
+### Running the Service
+
+You may run the service using a command like this:
+
+```bash
+export APP_CONFIG_FILES="./nmtfast-config-local.yaml"
+poetry run uvicorn main:app --reload
+```
+
+<span style="color: red">TODO:</span> **OPTIONAL:** If Docker is available, you may run the service like this:
+
+```bash
+docker build -t nmt-fastapi-reference .
+docker run --env-file .env -p 8000:8000 nmt-fastapi-reference
+```
+
+## Testing
+
+Run unit tests with:
+
+```bash
+poetry run invoke pytest
+```
+
+## Contributing
+
+Contributions are welcome! Please submit a pull request or open an issue.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2025 Alexander Haye
