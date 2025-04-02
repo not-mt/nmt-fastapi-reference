@@ -13,24 +13,14 @@
     "python.terminal.activateEnvInCurrentTerminal": true,
     "python.defaultInterpreterPath": ".venv/Scripts/python.exe",
     "python.autoComplete.extraPaths": [
-      //"./src",
-      //"../nmt-fastapi-library/src",
     ],
     "python.analysis.extraPaths": [
-      //"../nmt-fastapi-library/src",
-      //"../src",
-      //"../.venv/Lib/site-packages",
     ],
     "files.associations": {
       "*.env": "shellscript"
     },
     "files.exclude": {
       "**/__pycache__": true,
-      //".mypy_cache": true,
-      //".ruff_cache": true,
-      //".pytest_cache": true,
-      //".pypoetry_cache": true,
-      //".coverage": true,
     },
     "workbench.panel.defaultLocation": "bottom",
     "terminal.integrated.profiles.windows": {
