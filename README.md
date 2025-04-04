@@ -8,7 +8,7 @@ A FastAPI-based microservice leveraging the `nmtfast` Python package for structu
 - **Role-Based & Resource-Based ACLs**: Fine-grained access control managed via YAML configurations.
 - **Asynchronous API Handling**: Fully async support using FastAPI and SQLAlchemy async drivers.
 - **Structured Logging**: Custom formatting, control over loggers on a per-module basis, and unique IDs recorded for each request.
-- **Docker Support**: <span style="color: red">TODO:</span> Easily deployable with a provided `Dockerfile`.
+- **Docker Examples**: Easily deployable with a provided `Dockerfile` and sample `docker-compose.yaml`
 - **Merged Configuration Files**: Configuration settings may be merged from multiple sources using `nmtfast`, allowing secrets to be isolated to separate configuration files.
 
 ## Getting Started
@@ -140,19 +140,26 @@ export APP_CONFIG_FILES="./nmtfast-config-local.yaml"
 poetry run uvicorn main:app --reload
 ```
 
-<span style="color: red">TODO:</span> **OPTIONAL:** If Docker is available, you may run the service like this:
+**OPTIONAL:** If Docker is available, you may run the service like this:
 
 ```bash
-docker build -t nmt-fastapi-reference .
-docker run --env-file .env -p 8000:8000 nmt-fastapi-reference
+cp samples/docker-compose.yaml .
+docker-compose build
+docker-compose up
 ```
 
 ## Testing
 
-Run unit tests with:
+Verify all `pre-commit` checks are working:
 
 ```bash
-poetry run invoke pytest
+pre-commit run --all-files
+```
+
+Verify code coverage and unit tests:
+
+```bash
+poetry run invoke coverage
 ```
 
 ## Contributing
