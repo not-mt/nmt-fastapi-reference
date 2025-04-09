@@ -55,7 +55,7 @@ USER app:app
 WORKDIR /app
 
 # install the app source, pyproject.toml, etc
-COPY ./alembic  /app/
+COPY ./alembic  /app/alembic
 COPY ./alembic.ini /app/
 COPY ./LICENSE /app/
 COPY ./nmtfast-config-default.yaml /app/
@@ -63,7 +63,7 @@ COPY ./poetry.lock /app/
 COPY ./poetry.toml /app/
 COPY ./pyproject.toml /app/
 COPY ./README.md /app/
-COPY ./src /app/
+COPY ./src /app/src
 
 # prepare virtualenv and install python packages
 COPY ./samples/poetry.toml /app/poetry.toml
