@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  nmt-fastapi-reference:
+    container_name: nmt-fastapi-reference
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - 8080:8080
+    volumes:
+      - ./nmtfast-config-local.yaml:/app/nmtfast-config-local.yaml
+    environment:
+      APP_CONFIG_FILES: nmtfast-config-local.yaml
+    #
+    # Add any other necessary configurations
+    #

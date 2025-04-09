@@ -29,8 +29,8 @@ ENV/
 .pypoetry_cache
 *.db
 *.sqlite
-docker-compose.yml
-docker-compose.yaml
+/docker-compose.yml
+/docker-compose.yaml
 
 # our app
 nmtfast-config-local.yaml
