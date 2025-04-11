@@ -13,7 +13,7 @@ from fastapi import FastAPI
 
 from app.core.v1.database import Base
 from app.core.v1.settings import AppSettings, get_app_settings
-from main import app, configure_logging, lifespan
+from app.main import app, configure_logging, lifespan
 
 
 def test_logging_configuration(test_app_settings_with_loggers: AppSettings) -> None:

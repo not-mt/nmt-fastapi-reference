@@ -11,11 +11,11 @@ from fastapi.testclient import TestClient
 
 from app.dependencies.v1.database import get_db
 from app.errors.v1.exceptions import NotFoundError
+from app.main import app
 from app.repositories.v1.widgets import WidgetRepository
 from app.routers.v1.widgets import authenticate_headers, get_widget_service
 from app.schemas.v1.widgets import WidgetRead
 from app.services.v1.widgets import WidgetService
-from main import app
 
 client = TestClient(app)
 
