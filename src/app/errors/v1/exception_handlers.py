@@ -10,11 +10,11 @@ It ensures consistent error responses for widget-related exceptions
 and common server-side errors.
 """
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.responses import JSONResponse
 
 
-def not_found_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
+def not_found_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Handle generic 404 HTTP exceptions.
 
@@ -31,7 +31,7 @@ def not_found_error_handler(request: Request, exc: HTTPException) -> JSONRespons
     )
 
 
-def server_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
+def server_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Handle generic 500 HTTP exceptions.
 
@@ -48,7 +48,7 @@ def server_error_handler(request: Request, exc: HTTPException) -> JSONResponse:
     )
 
 
-def index_out_of_range_error_handler(request: Request, exc: IndexError) -> JSONResponse:
+def index_out_of_range_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Handle IndexError exceptions.
 

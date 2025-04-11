@@ -237,7 +237,7 @@ def coverage(
     Returns:
         None: No return value.
     """
-    cmd = f"pytest --cov=app --cov=main --cov-report term-missing {files}"
+    cmd = f"pytest --cov=app --cov-report term-missing {files}"
     if expr:
         cmd += f" -k {expr}"
     print(f"-> Running: {cmd}")

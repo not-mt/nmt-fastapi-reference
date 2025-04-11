@@ -137,7 +137,7 @@ You may run the service using a command like this:
 
 ```bash
 export APP_CONFIG_FILES="./nmtfast-config-local.yaml"
-poetry run uvicorn main:app --reload
+poetry run uvicorn app.main:app --reload
 ```
 
 **OPTIONAL:** If Docker is available, you may run the service like this:

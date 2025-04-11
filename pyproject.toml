@@ -1,9 +1,9 @@
 [project]
 name = "app"
-version = "0.1.0"
+version = "0.2.0"
 description = "A sample FastAPI reference design"
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"}
 ]
 license = {text = "MIT"}
 readme = "README.md"
