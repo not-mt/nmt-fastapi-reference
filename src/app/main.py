@@ -6,6 +6,7 @@
 
 import logging
 import logging.config
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -77,9 +78,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Lifespan ended")
 
 
+# NOTE: ROOT_PATH is the equivalent of "SCRIPT_NAME" in WSGI, and specifies
+#   a prefix that should be removed from  from route evaluation
+root_path = os.getenv("ROOT_PATH", "")
+print(f"Starting app with root_path='{root_path}'")
+
 # Initialize FastAPI application and middleware
 # NOTE: duration middleware must be first to log req IDs correctly
-app: FastAPI = FastAPI(lifespan=lifespan)
+app: FastAPI = FastAPI(lifespan=lifespan, root_path=root_path)
 app.add_middleware(RequestDurationMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
