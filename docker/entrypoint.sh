@@ -1,6 +1,10 @@
 #!/bin/bash
 set -eo pipefail  # stronger error handling than just 'set -e'
 
+# NOTE: ROOT_PATH needs to be defined before supervisord can pass it to
+#   our app (if necessary)
+export ROOT_PATH="$ROOT_PATH"
+
 # start services and record the PID
 supervisord -c /etc/supervisor/supervisord.conf &
 supervisord_pid=$!
