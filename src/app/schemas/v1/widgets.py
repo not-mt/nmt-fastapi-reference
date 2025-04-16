@@ -29,3 +29,19 @@ class WidgetRead(WidgetBase):
 
     id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class WidgetZap(BaseModel):
+    """Schema to initiate zap task on a widget."""
+
+    duration: int = 10
+
+
+class WidgetZapTask(BaseModel):
+    """Base schema for widgets."""
+
+    uuid: str
+    state: str = "UNKNOWN"
+    id: int
+    duration: int
+    runtime: int

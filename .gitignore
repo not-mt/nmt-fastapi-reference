@@ -29,6 +29,7 @@ ENV/
 .pypoetry_cache
 *.db
 *.sqlite
+*.sqlite-*
 /docker-compose.yml
 /docker-compose.yaml
 

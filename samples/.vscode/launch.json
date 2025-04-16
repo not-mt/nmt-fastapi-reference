@@ -7,13 +7,31 @@
     {
       "name": "Compound: Flask/Huey",
       "configurations": [
-        "debugpy: uvicorn"
-        //"debugpy: huey"
+        "debugpy: uvicorn",
+        "debugpy: huey"
       ],
       "stopAll": true
     }
   ],
   "configurations": [
+    {
+      "name": "debugpy: huey",
+      "consoleName": "huey",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "huey.bin.huey_consumer",
+      "console":"internalConsole",
+      "redirectOutput": true,
+      "subProcess": true,
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PROCESS_SPAWN_TIMEOUT": "60",
+        "APP_CONFIG_FILES": "${workspaceFolder}/nmtfast-config-default.yaml,${workspaceFolder}/nmtfast-config-local.yaml",
+      },
+      "args": [
+        "app.task_loader.huey_app",
+      ],
+    },
     {
       "name": "debugpy: uvicorn",
       "type": "debugpy",

@@ -85,7 +85,11 @@ print(f"Starting app with root_path='{root_path}'")
 
 # Initialize FastAPI application and middleware
 # NOTE: duration middleware must be first to log req IDs correctly
-app: FastAPI = FastAPI(lifespan=lifespan, root_path=root_path)
+app: FastAPI = FastAPI(
+    title="nmt-fastapi-reference",
+    lifespan=lifespan,
+    root_path=root_path,
+)
 app.add_middleware(RequestDurationMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(

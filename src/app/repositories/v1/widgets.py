@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class WidgetRepositoryProtocol(Protocol):
     """Async Protocol defining widget repository operations."""
 
-    async def create_widget(self, widget: WidgetCreate) -> Widget:
+    async def widget_create(self, widget: WidgetCreate) -> Widget:
         """
         Create a new widget entry in the database.
 
@@ -54,7 +54,7 @@ class WidgetRepository(WidgetRepositoryProtocol):
     def __init__(self, db: AsyncSession) -> None:
         self.db: AsyncSession = db
 
-    async def create_widget(self, widget: WidgetCreate) -> Widget:
+    async def widget_create(self, widget: WidgetCreate) -> Widget:
         """
         Create a new widget and persist it to the database.
 

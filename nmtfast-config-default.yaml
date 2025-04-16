@@ -37,3 +37,7 @@ logging:
   loggers:
     - name: aiosqlite
       level: INFO
+tasks:
+  name: nmt-fastapi-referencce
+  backend: sqlite
+  url: ./huey.sqlite
