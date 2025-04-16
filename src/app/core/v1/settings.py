@@ -7,7 +7,7 @@
 import logging
 
 from nmtfast.settings.v1.config_files import get_config_files, load_config
-from nmtfast.settings.v1.schemas import AuthSettings, LoggingSettings
+from nmtfast.settings.v1.schemas import AuthSettings, LoggingSettings, Tasks
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -85,6 +85,12 @@ class AppSettings(BaseSettings):
         },
     )
     logging: LoggingSettings = LoggingSettings()
+    tasks: Tasks = Tasks(
+        name="FIXME",
+        backend="sqlite",
+        url="redis://:FIXME_password@FIXME_host:6379/FIXME_db_number",
+        sqlite_filename="./huey.sqlite",
+    )
 
     model_config = SettingsConfigDict(extra="ignore")
 

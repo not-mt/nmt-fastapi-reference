@@ -28,7 +28,11 @@ do
         break
     fi
 
-    # TODO: add async worker(s)
+    if ! supervisorctl status huey | grep -q RUNNING
+    then
+        echo "huey process crashed"
+        break
+    fi
 
     if ! supervisorctl status nginx | grep -q RUNNING
     then

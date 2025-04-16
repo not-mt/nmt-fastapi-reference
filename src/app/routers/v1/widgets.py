@@ -11,7 +11,7 @@ It utilizes FastAPI's dependency injection to handle database sessions.
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from nmtfast.settings.v1.schemas import SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,12 @@ from app.dependencies.v1.database import get_db
 from app.dependencies.v1.settings import get_settings
 from app.errors.v1.exceptions import NotFoundError
 from app.repositories.v1.widgets import WidgetRepository
-from app.schemas.v1.widgets import WidgetCreate, WidgetRead
+from app.schemas.v1.widgets import (
+    WidgetCreate,
+    WidgetRead,
+    WidgetZap,
+    WidgetZapTask,
+)
 from app.services.v1.widgets import WidgetService
 
 logger = logging.getLogger(__name__)
@@ -59,12 +64,12 @@ def get_widget_service(
     summary="Create a widget",
     description="Create a widget",  # Override the docstring in Swagger UI
 )
-async def create_widget(
+async def widget_create(
     widget: WidgetCreate,
     widget_service: WidgetService = Depends(get_widget_service),
 ) -> WidgetRead:
     """
-    Create a new widget via the API.
+    Create a new widget.
 
     Args:
         widget: The widget data provided in the request.
@@ -74,7 +79,7 @@ async def create_widget(
         WidgetRead: The created widget data.
     """
     logger.info(f"Attempting to create a widget: {widget}")
-    return await widget_service.create_widget(widget)
+    return await widget_service.widget_create(widget)
 
 
 @widgets_router.get(
@@ -83,7 +88,7 @@ async def create_widget(
     summary="View (read) a widget",
     description="View (read) a widget",  # Override the docstring in Swagger UI
 )
-async def get_widget_by_id(
+async def widget_get_by_id(
     widget_id: int,
     widget_service: WidgetService = Depends(get_widget_service),
 ) -> WidgetRead:
@@ -101,8 +106,72 @@ async def get_widget_by_id(
         HTTPException: If the resource does not exist.
     """
     try:
-        widget = await widget_service.get_widget_by_id(widget_id)
+        widget = await widget_service.widget_get_by_id(widget_id)
     except NotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
 
     return widget
+
+
+@widgets_router.post(
+    "/{widget_id}/zap",
+    response_model=WidgetZapTask,
+    # TODO: add custom response which includes Location header!
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Zap a widget",
+    description="Zap a widget",  # Override the docstring in Swagger UI
+)
+async def widget_zap(
+    widget_id: int,
+    payload: WidgetZap,
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> WidgetZapTask:
+    """
+    Zaps an existing widget.
+
+    Args:
+        widget_id: The ID of the widget to zap.
+        payload: The widget task parameters.
+        widget_service: The widget service instance.
+
+    Returns:
+        WidgetZapTask: Information about the new task that was created.
+    """
+    logger.info(f"Attempting to zap widget {widget_id}: {payload}")
+    return await widget_service.widget_zap(widget_id, payload)
+
+
+@widgets_router.get(
+    "/{widget_id}/zap/{task_uuid}/status",
+    response_model=WidgetZapTask,
+    summary="View (read) a widget",
+    description="View (read) a widget",  # Override the docstring in Swagger UI
+)
+async def widget_zap_get_task(
+    widget_id: int,
+    task_uuid: str,
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> WidgetZapTask:
+    """
+    Retrieve a zap widget task by its UUID.
+
+    Args:
+        widget_id: The ID of the widget to retrieve.
+        task_uuid: The UUID of the async task.
+        widget_service: The widget service instance.
+
+    Returns:
+        WidgetZapTask: The retrieved widget task data.
+
+    Raises:
+        HTTPException: If the resource does not exist.
+    """
+    try:
+        task_md = await widget_service.widget_zap_by_uuid(
+            widget_id,
+            task_uuid,
+        )
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
+
+    return task_md

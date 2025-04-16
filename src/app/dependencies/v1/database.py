@@ -22,8 +22,8 @@ async def get_db(
     """
     Provide an async database session for FastAPI endpoints.
 
-    This creates an instance instance of async_session (using the factory that
-    was imported from app.core) and using a context manager (async with) to handle
+    This creates an instance of async_session (using the factory that was
+    imported from app.core) and using a context manager (async with) to handle
     the lifecycle of the session.
 
     Args:

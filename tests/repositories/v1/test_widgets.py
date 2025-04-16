@@ -14,7 +14,7 @@ from app.schemas.v1.widgets import WidgetCreate
 
 
 @pytest.mark.asyncio
-async def test_create_widget(
+async def test_widget_create(
     mock_async_session: AsyncMock,
     mock_widget_create: WidgetCreate,
 ):
@@ -28,7 +28,7 @@ async def test_create_widget(
     # NOTE: simulate assigning an 'id' to the object, without actually needing an
     #   underlying DB to do this for us, because this is a unit test
     mock_async_session.add.side_effect = lambda db_widget: setattr(db_widget, "id", 1)
-    result = await repository.create_widget(mock_widget_create)
+    result = await repository.widget_create(mock_widget_create)
 
     mock_async_session.add.assert_called_once()
     mock_async_session.commit.assert_called_once()
@@ -39,7 +39,7 @@ async def test_create_widget(
 
 
 @pytest.mark.asyncio
-async def test_get_widget_by_id_found(
+async def test_widget_get_by_id_found(
     mock_async_session: AsyncMock,
     mock_db_widget: Widget,
 ):
@@ -55,7 +55,7 @@ async def test_get_widget_by_id_found(
 
 
 @pytest.mark.asyncio
-async def test_get_widget_by_id_not_found(mock_async_session: AsyncMock):
+async def test_widget_get_by_id_not_found(mock_async_session: AsyncMock):
     """Test retrieving a widget by ID when it does not exist."""
 
     repository = WidgetRepository(mock_async_session)

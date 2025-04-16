@@ -20,7 +20,9 @@ dependencies = [
     "cryptography (>=44.0.2,<45.0.0)",
     "pyjwt (>=2.10.1,<3.0.0)",
     "argon2-cffi (>=23.1.0,<24.0.0)",
-    "pytest-mock (>=3.14.0,<4.0.0)"
+    "pytest-mock (>=3.14.0,<4.0.0)",
+    "huey (>=2.5.3,<3.0.0)",
+    "tenacity (>=9.1.2,<10.0.0)"
 ]
 packages = [
     { include = "app", from = "src" }
@@ -99,6 +101,14 @@ cache_dir = ".local/mypy_cache"
 exclude = "^alembic/|^\\.?(venv)/|^\\.local"
 explicit_package_bases = true
 mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = "huey.*"
+ignore_missing_imports = true
+
+#[[tool.mypy.overrides]]
+#module = "THE_NEXT_MODULE_GOES_HERE.*"
+#ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 cache_dir = ".local/pytest_cache"

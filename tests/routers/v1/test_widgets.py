@@ -21,12 +21,12 @@ client = TestClient(app)
 
 
 @pytest.mark.asyncio
-async def test_create_widget_endpoint_success(
+async def test_widget_create_endpoint_success(
     mock_api_key: str,
     mock_widget_service: AsyncMock,
     mock_widget_read: WidgetRead,
 ):
-    """Unit test for the create_widget endpoint."""
+    """Unit test for the widget_create endpoint."""
 
     # override the dependencies to use the mock service
     def override_get_widget_service():
@@ -38,7 +38,7 @@ async def test_create_widget_endpoint_success(
 
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
-    mock_widget_service.create_widget = AsyncMock(return_value=mock_widget_read)
+    mock_widget_service.widget_create = AsyncMock(return_value=mock_widget_read)
 
     response = client.post(
         "/v1/widgets/",
@@ -73,12 +73,12 @@ async def test_get_widget_service_dependency(mock_async_session: AsyncMock):
 
 
 @pytest.mark.asyncio
-async def test_get_widget_by_id_endpoint_success(
+async def test_widget_get_by_id_endpoint_success(
     mock_api_key: str,
     mock_widget_service: AsyncMock,
     mock_widget_read: WidgetRead,
 ):
-    """Unit test for the get_widget_by_id endpoint when the widget exists."""
+    """Unit test for the widget_get_by_id endpoint when the widget exists."""
 
     # override the dependencies to use the mock service
     def override_get_widget_service():
@@ -90,7 +90,7 @@ async def test_get_widget_by_id_endpoint_success(
 
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
-    mock_widget_service.get_widget_by_id = AsyncMock(return_value=mock_widget_read)
+    mock_widget_service.widget_get_by_id = AsyncMock(return_value=mock_widget_read)
 
     response = client.get(
         f"/v1/widgets/{mock_widget_read.id}",
@@ -105,11 +105,11 @@ async def test_get_widget_by_id_endpoint_success(
 
 
 @pytest.mark.asyncio
-async def test_get_widget_by_id_endpoint_not_found(
+async def test_widget_get_by_id_endpoint_not_found(
     mock_api_key: str,
     mock_widget_service: AsyncMock,
 ):
-    """Unit test for the get_widget_by_id endpoint when the widget does not exist."""
+    """Unit test for the widget_get_by_id endpoint when the widget does not exist."""
 
     # override the dependencies to use the mock service
     def override_get_widget_service():
@@ -121,7 +121,7 @@ async def test_get_widget_by_id_endpoint_not_found(
 
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
-    mock_widget_service.get_widget_by_id = AsyncMock(
+    mock_widget_service.widget_get_by_id = AsyncMock(
         side_effect=NotFoundError(resource_id=123, resource_name="Widget"),
     )
 

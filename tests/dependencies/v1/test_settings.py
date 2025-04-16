@@ -10,7 +10,7 @@ from app.dependencies.v1.settings import AppSettings, get_settings
 
 
 @pytest.mark.asyncio
-async def test_create_widget_success():
+async def test_widget_create_success():
     """Test fetching settings using get_settings()."""
 
     settings: AppSettings = await get_settings()
