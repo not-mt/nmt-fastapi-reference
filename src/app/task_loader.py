@@ -40,8 +40,8 @@ def discover_tasks(package: str = "app.tasks") -> None:
     our code with __init__.py files.
     """
     spec = importlib.util.find_spec(package)
-    if spec is None or not spec.submodule_search_locations:
-        raise ImportError(f"Could not find package: {package}")
+    if spec is None or spec.submodule_search_locations is None:
+        raise ImportError(f"Could not find package {package}")
 
     base_path = pathlib.Path(next(iter(spec.submodule_search_locations)))
 
@@ -54,11 +54,8 @@ def discover_tasks(package: str = "app.tasks") -> None:
             f"{package}.{relative_path.with_suffix('').as_posix().replace('/', '.')}"
         )
 
-        try:
-            importlib.import_module(module_name)
-            logger.info(f"Loaded task module: {module_name}")
-        except Exception as exc:
-            logger.warning(f"Failed to import module {module_name}: {exc}")
+        importlib.import_module(module_name)
+        logger.info(f"Loaded task module: {module_name}")
 
 
 configure_logging(get_app_settings())

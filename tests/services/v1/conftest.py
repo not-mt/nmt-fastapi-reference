@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings, AuthSettings, LoggingSettings
 from app.repositories.v1.widgets import WidgetRepository
-from app.schemas.v1.widgets import WidgetCreate, WidgetRead
+from app.schemas.v1.widgets import WidgetCreate, WidgetRead, WidgetZap, WidgetZapTask
 
 ph = argon2.PasswordHasher()
 
@@ -109,3 +109,19 @@ def mock_widget_read() -> WidgetRead:
     Fixture to provide a test WidgetRead instance.
     """
     return WidgetRead(id=1, name="Test Widget", height="10", mass="5", force=20)
+
+
+@pytest.fixture
+def mock_widget_zap() -> WidgetZap:
+    """
+    Fixture for a sample WidgetZap payload.
+    """
+    return WidgetZap(duration=5)
+
+
+@pytest.fixture
+def mock_widget_zap_task() -> WidgetZapTask:
+    """
+    Fixture for a sample WidgetZapTask.
+    """
+    return WidgetZapTask(uuid="test-uuid", id=1, state="PENDING", duration=5, runtime=0)

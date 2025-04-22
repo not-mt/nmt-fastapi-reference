@@ -134,11 +134,17 @@ async def widget_zap(
         payload: The widget task parameters.
         widget_service: The widget service instance.
 
+    Raises:
+        HTTPException: If the resource does not exist.
+
     Returns:
         WidgetZapTask: Information about the new task that was created.
     """
     logger.info(f"Attempting to zap widget {widget_id}: {payload}")
-    return await widget_service.widget_zap(widget_id, payload)
+    try:
+        return await widget_service.widget_zap(widget_id, payload)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
 
 
 @widgets_router.get(
