@@ -127,9 +127,9 @@ class WidgetService:
             duration=payload.duration,
         )
         task_uuid = "PENDING"
-        if hasattr(result, "task"):
-            task = getattr(result, "task")
-            task_uuid = getattr(task, "id")
+        # if hasattr(result, "task"):
+        task = getattr(result, "task")
+        task_uuid = getattr(task, "id")
 
         task_md = {
             "uuid": task_uuid,

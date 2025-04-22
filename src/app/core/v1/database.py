@@ -40,7 +40,7 @@ sync_session = sessionmaker(bind=sync_engine)
 
 def with_sync_session(func):
     """
-    Provide a SQLAlchemy session to a function as the 'db' keyword argument.
+    Provide a SQLAlchemy session to a function as the 'db_session' keyword argument.
     """
 
     @wraps(func)
