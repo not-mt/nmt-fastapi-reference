@@ -17,10 +17,10 @@
     {
       "name": "debugpy: huey",
       "consoleName": "huey",
+      "console":"internalConsole",
       "type": "debugpy",
       "request": "launch",
       "module": "huey.bin.huey_consumer",
-      "console":"internalConsole",
       "redirectOutput": true,
       "subProcess": true,
       "cwd": "${workspaceFolder}",
@@ -34,6 +34,9 @@
     },
     {
       "name": "debugpy: uvicorn",
+      "consoleName": "uvicorn",
+      "console":"internalConsole",
+      "internalConsoleOptions": "openOnSessionStart",
       "type": "debugpy",
       "request": "launch",
       "module": "uvicorn",
