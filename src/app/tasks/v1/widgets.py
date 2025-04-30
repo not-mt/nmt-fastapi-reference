@@ -12,7 +12,7 @@ from nmtfast.middleware.v1.request_id import REQUEST_ID_CONTEXTVAR
 from nmtfast.tasks.v1.huey import fetch_task_metadata, store_task_metadata
 from sqlalchemy.orm import Session
 
-from app.core.v1.database import with_sync_session
+from app.core.v1.sqlalchemy import with_sync_session
 from app.core.v1.tasks import huey_app
 from app.models.v1.widgets import Widget
 from app.schemas.v1.widgets import WidgetZapTask

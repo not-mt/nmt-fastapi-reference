@@ -20,12 +20,21 @@ class SqlAlchemySettings(BaseModel):
     url: str = "sqlite+aiosqlite:///./development.sqlite"
 
 
+class MongoSettings(BaseModel):
+    """MongoDB database settings model."""
+
+    url: str = (
+        "mongodb+srv://FIXME_username:FIXME_PASSWORD@cluster0.FIXME.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    )
+
+
 class AppSettings(BaseSettings):
     """Application settings model."""
 
     version: int = 1
     app_name: str = "My FastAPI App"
-    database: SqlAlchemySettings = SqlAlchemySettings()
+    sqlalchemy: SqlAlchemySettings = SqlAlchemySettings()
+    mongo: MongoSettings = MongoSettings()
     auth: AuthSettings = AuthSettings(
         swagger_token_url="https://some.domain.tld/token",
         id_providers={

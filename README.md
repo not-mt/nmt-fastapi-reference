@@ -108,7 +108,7 @@ Place the generated hash in the `nmtfast-config-local.yaml` config file; for exa
 ```yaml
 ---
 version: 1
-database:
+sqlalchemy:
   url: sqlite+aiosqlite:///./development.sqlite
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token

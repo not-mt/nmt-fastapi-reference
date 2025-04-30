@@ -1,7 +1,9 @@
 ---
 version: 1
-database:
+sqlalchemy:
   url: sqlite+aiosqlite:///./development.sqlite
+mongo:
+  url: ''
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token
   id_providers: {}
@@ -40,4 +42,4 @@ logging:
 tasks:
   name: nmt-fastapi-referencce
   backend: sqlite
-  url: ./huey.sqlite
+  sqlite_filename: ./huey.sqlite

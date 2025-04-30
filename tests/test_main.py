@@ -10,10 +10,48 @@ from unittest.mock import patch
 import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
+from huey import RedisExpireHuey, SqliteHuey
+from nmtfast.settings.v1.schemas import Tasks
 
-from app.core.v1.database import Base
 from app.core.v1.settings import AppSettings, get_app_settings
+from app.core.v1.sqlalchemy import Base
 from app.main import app, configure_logging, lifespan
+
+
+def test_task_settings_redis_backend() -> None:
+    """Test using a Huey app with Redis backend."""
+
+    test_app_settings = AppSettings(
+        tasks=Tasks(name="demo-tasks", backend="redis", url="redis://localhost:6379"),
+    )
+
+    with patch("app.core.v1.settings.get_app_settings", return_value=test_app_settings):
+        # NOTE: reload the module to re-execute the module-level code
+        import importlib
+
+        from app.core.v1 import tasks
+
+        importlib.reload(tasks)
+
+        assert isinstance(tasks.huey_app, RedisExpireHuey)
+
+
+def test_task_settings_sqlite_backend() -> None:
+    """Test using a Huey app with sqlite backend."""
+
+    test_app_settings = AppSettings(
+        tasks=Tasks(name="demo-tasks", backend="sqlite"),
+    )
+
+    with patch("app.core.v1.settings.get_app_settings", return_value=test_app_settings):
+        # NOTE: reload the module to re-execute the module-level code
+        import importlib
+
+        from app.core.v1 import tasks
+
+        importlib.reload(tasks)
+
+        assert isinstance(tasks.huey_app, SqliteHuey)
 
 
 def test_logging_configuration(test_app_settings_with_loggers: AppSettings) -> None:

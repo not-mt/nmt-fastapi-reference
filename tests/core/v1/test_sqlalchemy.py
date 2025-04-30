@@ -2,11 +2,11 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""Unit tests for core database functions."""
+"""Unit tests for core SQLAlchemy functions."""
 
 from unittest.mock import MagicMock, patch
 
-from app.core.v1.database import with_sync_session
+from app.core.v1.sqlalchemy import with_sync_session
 
 
 def test_with_sync_session_injects_db_session():
@@ -22,7 +22,7 @@ def test_with_sync_session_injects_db_session():
         called_args["db_session"] = db_session
         return "success"
 
-    with patch("app.core.v1.database.sync_session") as mock_sessionmaker:
+    with patch("app.core.v1.sqlalchemy.sync_session") as mock_sessionmaker:
         mock_context = mock_sessionmaker.return_value.__enter__.return_value
         mock_context.get.return_value = "mocked result"
 

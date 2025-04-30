@@ -6,7 +6,7 @@
 Widget API endpoints.
 
 This module defines API endpoints for managing widgets, including creating widgets.
-It utilizes FastAPI's dependency injection to handle database sessions.
+It utilizes FastAPI's dependency injection to handle SQLAlchemy sessions.
 """
 
 import logging
@@ -17,8 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.auth import authenticate_headers, get_acls
-from app.dependencies.v1.database import get_db
 from app.dependencies.v1.settings import get_settings
+from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.errors.v1.exceptions import NotFoundError
 from app.repositories.v1.widgets import WidgetRepository
 from app.schemas.v1.widgets import (
@@ -38,7 +38,7 @@ widgets_router = APIRouter(
 
 
 def get_widget_service(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_sql_db),
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
 ) -> WidgetService:

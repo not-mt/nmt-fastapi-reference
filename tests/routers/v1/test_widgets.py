@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies.v1.database import get_db
+from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.errors.v1.exceptions import NotFoundError
 from app.main import app
 from app.repositories.v1.widgets import WidgetRepository
@@ -58,10 +58,10 @@ async def test_get_widget_service_dependency(mock_async_session: AsyncMock):
     """Test the get_widget_service dependency."""
 
     # Override the database dependency to use a mock session
-    def override_get_db():
+    def override_get_sql_db():
         return mock_async_session
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_sql_db] = override_get_sql_db
 
     widget_service = get_widget_service(mock_async_session)
 
@@ -69,7 +69,7 @@ async def test_get_widget_service_dependency(mock_async_session: AsyncMock):
     assert isinstance(widget_service.widget_repository, WidgetRepository)
     assert widget_service.widget_repository.db == mock_async_session
 
-    app.dependency_overrides.pop(get_db)
+    app.dependency_overrides.pop(get_sql_db)
 
 
 @pytest.mark.asyncio
