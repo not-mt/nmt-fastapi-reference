@@ -16,8 +16,8 @@ from nmtfast.logging.v1.config import create_logging_config
 from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
 from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 
-from app.core.v1.database import Base, async_engine
 from app.core.v1.settings import AppSettings, get_app_settings
+from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
     index_out_of_range_error_handler,
     not_found_error_handler,

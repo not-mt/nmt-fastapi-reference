@@ -4,7 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncConnection, async_engine_from_config
 
-from app.core.v1.database import Base
+from app.core.v1.sqlalchemy import Base
 from app.core.v1.settings import get_app_settings
 
 # Alembic Config object
@@ -16,11 +16,11 @@ if config.config_file_name is not None:
 
 # Load the database URL from settings
 settings = get_app_settings()
-if not settings.database.url:
-    raise ValueError("database.url not found in settings!")
+if not settings.sqlalchemy.url:
+    raise ValueError("sqlalchemy.url not found in settings!")
 
 # Override sqlalchemy.url with the async database URL
-config.set_main_option("sqlalchemy.url", settings.database.url)
+config.set_main_option("sqlalchemy.url", settings.sqlalchemy.url)
 
 # Target metadata for 'autogenerate' support
 target_metadata = Base.metadata

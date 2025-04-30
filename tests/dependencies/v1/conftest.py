@@ -13,11 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings, AuthSettings, LoggingSettings
 
-# from app.models.v1.widgets import Widget
-# from app.repositories.v1.widgets import WidgetRepository
-# from app.schemas.v1.widgets import WidgetCreate, WidgetRead
-# from app.services.v1.widgets import WidgetService
-
 ph = argon2.PasswordHasher()
 
 

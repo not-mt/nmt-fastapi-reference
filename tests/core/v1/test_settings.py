@@ -12,7 +12,7 @@ from app.core.v1.settings import (
 )
 
 
-def test_database_settings():
+def test_sqlalchemy_settings():
     """Test SqlAlchemySettings model."""
     settings = SqlAlchemySettings(url="test_url")
     assert settings.url == "test_url"
@@ -33,10 +33,10 @@ def test_logging_settings():
 def test_app_settings():
     """Test AppSettings model."""
     settings = AppSettings(
-        app_name="Test App", database={"url": "test_db"}, logging={"level": "WARNING"}
+        app_name="Test App", sqlalchemy={"url": "test_db"}, logging={"level": "WARNING"}
     )
     assert settings.app_name == "Test App"
-    assert settings.database.url == "test_db"
+    assert settings.sqlalchemy.url == "test_db"
     assert settings.logging.level == "WARNING"
 
 

@@ -2,7 +2,7 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""Database engine and session setup."""
+"""SQLAlchemy engine and session setup."""
 
 import re
 from functools import wraps
@@ -24,13 +24,13 @@ Base = declarative_base()  # needed for Alembic migrations
 
 # NOTE: asynchronous SQLAlchemy engine and session should be used with
 #   dependency injection for normal API calls
-async_engine = create_async_engine(settings.database.url)
+async_engine = create_async_engine(settings.sqlalchemy.url)
 async_session = async_sessionmaker(
     bind=async_engine, class_=AsyncSession, expire_on_commit=False
 )
 
 # Convert async URL (e.g., "postgresql+asyncpg://") to sync (e.g., "postgresql://")
-sync_url = re.sub(r"\+[^:]+", "", settings.database.url)
+sync_url = re.sub(r"\+[^:]+", "", settings.sqlalchemy.url)
 
 # NOTE: synchronous SQLAlchemy engine and session should ONLY BE USED for
 #   for background tasks that are scheduled and executed by Huey
