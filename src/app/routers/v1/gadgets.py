@@ -27,7 +27,7 @@ from app.services.v1.gadgets import GadgetService
 logger = logging.getLogger(__name__)
 gadgets_router = APIRouter(
     prefix="/v1/gadgets",
-    tags=["Gadget Operations"],
+    tags=["Gadget Operations (MongoDB)"],
     dependencies=[Depends(authenticate_headers)],
 )
 
@@ -145,8 +145,8 @@ async def gadget_zap(
 @gadgets_router.get(
     "/{gadget_id}/zap/{task_uuid}/status",
     response_model=GadgetZapTask,
-    summary="View (read) a gadget",
-    description="View (read) a gadget",  # Override the docstring in Swagger UI
+    summary="View async task status",
+    description="View async task status",  # Override the docstring in Swagger UI
 )
 async def gadget_zap_get_task(
     gadget_id: str,
