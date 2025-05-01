@@ -24,8 +24,10 @@ class MongoSettings(BaseModel):
     """MongoDB database settings model."""
 
     url: str = (
-        "mongodb+srv://FIXME_username:FIXME_PASSWORD@cluster0.FIXME.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+        "mongodb+srv://FIXME_username:FIXME_PASSWORD"
+        "@cluster0.FIXME.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     )
+    db: str = "nmt-fastapi-reference"
 
 
 class AppSettings(BaseSettings):

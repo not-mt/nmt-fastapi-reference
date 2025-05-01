@@ -79,7 +79,7 @@ class GadgetService:
 
         return GadgetRead.model_validate(db_gadget)
 
-    async def gadget_get_by_id(self, gadget_id: int) -> GadgetRead:
+    async def gadget_get_by_id(self, gadget_id: str) -> GadgetRead:
         """
         Retrieve a gadget by its ID.
 
@@ -100,7 +100,7 @@ class GadgetService:
 
         return GadgetRead.model_validate(db_gadget)
 
-    async def gadget_zap(self, gadget_id: int, payload: GadgetZap) -> GadgetZapTask:
+    async def gadget_zap(self, gadget_id: str, payload: GadgetZap) -> GadgetZapTask:
         """
         Zap an existing gadget.
 
@@ -144,7 +144,7 @@ class GadgetService:
 
     async def gadget_zap_by_uuid(
         self,
-        gadget_id: int,
+        gadget_id: str,
         task_uuid: str,
     ) -> GadgetZapTask:
         """

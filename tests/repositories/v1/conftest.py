@@ -4,12 +4,11 @@
 
 """pytest fixtures for unit / integration tests."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.v1.gadgets import Gadget
 from app.models.v1.widgets import Widget
 from app.schemas.v1.gadgets import GadgetCreate
 from app.schemas.v1.widgets import WidgetCreate
@@ -48,18 +47,63 @@ def mock_db_widget():
 # gadget fixtures
 #
 
+# @pytest.fixture
+# def mock_gadget():
+#     """
+#     Fixture for a mock gadget dict (as stored in MongoDB).
+#     """
+#     return {
+#         "id": "id-1",
+#         "name": "ZapBot 5000",
+#         "force": 5,
+#     }
+
 
 @pytest.fixture
 def mock_gadget_create() -> GadgetCreate:
     """
     Fixture to provide a test GadgetCreate instance.
     """
-    return GadgetCreate(name="Test Gadget")
+    return GadgetCreate(
+        id="123e4567-e89b-12d3-a456-426614174000",
+        name="Test Gadget",
+        height="10cm",
+        mass="5kg",
+        force=20,
+    )
 
 
 @pytest.fixture
-def mock_db_gadget():
+def mock_db_gadget() -> dict:
     """
-    Fixture to create a mock Gadget database object.
+    Fixture to return a fake gadget document as it would appear in MongoDB (with 'id').
     """
-    return Gadget(id=1, name="Test Gadget", height="10cm", mass="5kg", force=20)
+    return {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "Test Gadget",
+        "height": "10cm",
+        "mass": "5kg",
+        "force": 20,
+    }
+
+
+# @pytest.fixture
+# def mock_mongo_collection() -> AsyncMock:
+#     """
+#     Fixture to provide a mock AsyncIOMotorCollection.
+#     """
+#     return AsyncMock(spec=AsyncIOMotorCollection)
+
+
+@pytest.fixture
+def mock_mongo_db(mock_db_gadget):
+    """
+    Fixture for a mock MongoDB database with a 'gadgets' collection using AsyncMock.
+    """
+    collection = MagicMock()
+    collection.find_one = AsyncMock(return_value=mock_db_gadget.copy())
+    collection.insert_one = AsyncMock(return_value=mock_db_gadget.copy())
+    collection.update_one = AsyncMock(return_value=None)
+
+    mongo_db = {"gadgets": collection}
+    return mongo_db

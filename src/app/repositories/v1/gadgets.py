@@ -5,12 +5,12 @@
 """Repository layer for Gadget resources."""
 
 import logging
-from typing import Protocol
+from typing import Any, Protocol
+from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
 
-from app.models.v1.gadgets import Gadget
-from app.schemas.v1.gadgets import GadgetCreate
+from app.schemas.v1.gadgets import GadgetCreate, GadgetRead
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class GadgetRepositoryProtocol(Protocol):
     """Async Protocol defining gadget repository operations."""
 
-    async def gadget_create(self, gadget: GadgetCreate) -> Gadget:
+    async def gadget_create(self, gadget: GadgetCreate) -> GadgetRead:
         """
         Create a new gadget entry in the database.
 
@@ -26,11 +26,11 @@ class GadgetRepositoryProtocol(Protocol):
             gadget: The gadget schema instance.
 
         Returns:
-            Gadget: The created gadget instance.
+            GadgetRead: The created gadget instance.
         """
         ...  # pragma: no cover
 
-    async def get_by_id(self, gadget_id: int) -> Gadget | None:
+    async def get_by_id(self, gadget_id: str) -> GadgetRead | None:
         """
         Create a new gadget entry in the database.
 
@@ -38,7 +38,7 @@ class GadgetRepositoryProtocol(Protocol):
             gadget_id: The ID number of the gadget.
 
         Returns:
-            Gadget | None: The created gadget instance.
+            GadgetRead | None: The created gadget instance.
         """
         ...  # pragma: no cover
 
@@ -48,13 +48,14 @@ class GadgetRepository(GadgetRepositoryProtocol):
     Repository implementation for Gadget operations.
 
     Args:
-        db: The asynchronous database session.
+        db: The asynchronous MongoDB database.
     """
 
-    def __init__(self, db: AsyncSession) -> None:
-        self.db: AsyncSession = db
+    def __init__(self, db: AsyncIOMotorDatabase) -> None:
+        self.db: AsyncIOMotorDatabase = db
+        self.collection: AsyncIOMotorCollection = db["gadgets"]
 
-    async def gadget_create(self, gadget: GadgetCreate) -> Gadget:
+    async def gadget_create(self, gadget: GadgetCreate) -> GadgetRead:
         """
         Create a new gadget and persist it to the database.
 
@@ -62,17 +63,17 @@ class GadgetRepository(GadgetRepositoryProtocol):
             gadget: The gadget data transfer object.
 
         Returns:
-            Gadget: The newly created gadget instance.
+            GadgetRead: The newly created gadget instance.
         """
-        db_gadget = Gadget(**gadget.model_dump())
-        self.db.add(db_gadget)
-        logger.debug(f"Adding gadget: {gadget.model_dump()}")
-        await self.db.commit()
-        await self.db.refresh(db_gadget)
+        new_gadget = gadget.model_dump()
+        new_gadget["id"] = str(uuid4())
+        await self.collection.insert_one(new_gadget)
+        inserted_gadget = await self.collection.find_one({"id": new_gadget["id"]})
+        logger.debug(f"Inserted gadget: {inserted_gadget}")
 
-        return db_gadget
+        return GadgetRead(**new_gadget)
 
-    async def get_by_id(self, gadget_id: int) -> Gadget | None:
+    async def get_by_id(self, gadget_id: str) -> GadgetRead | None:
         """
         Retrieve a gadget by its ID from the database.
 
@@ -80,14 +81,18 @@ class GadgetRepository(GadgetRepositoryProtocol):
             gadget_id: The ID of the gadget to retrieve.
 
         Returns:
-            Gadget | None: The retrieved gadget instance, or None if not found.
+            GadgetRead | None: The retrieved gadget instance, or None if not found.
         """
         logger.debug(f"Fetching gadget by ID: {gadget_id}")
-        db_gadget = await self.db.get(Gadget, gadget_id)
+        db_gadget: dict[str, Any] | None = await self.collection.find_one(
+            {"id": gadget_id}
+        )
 
         if db_gadget is None:
             logger.warning(f"Gadget with ID {gadget_id} not found.")
+            return None
         else:
             logger.debug(f"Retrieved gadget: {db_gadget}")
+            db_gadget.pop("_id", None)
 
-        return db_gadget
+        return GadgetRead(**db_gadget)

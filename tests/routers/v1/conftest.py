@@ -4,7 +4,7 @@
 
 """pytest fixtures for unit / integration tests."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import argon2
 import pytest
@@ -80,6 +80,31 @@ def mock_async_session() -> AsyncMock:
     return AsyncMock(spec=AsyncSession)
 
 
+@pytest.fixture
+def mock_gadget():
+    """
+    Fixture for a mock gadget dict (as stored in MongoDB).
+    """
+    return {
+        "id": "id-1",
+        "name": "ZapBot 5000",
+        "force": 5,
+    }
+
+
+@pytest.fixture
+def mock_mongo_db(mock_gadget):
+    """
+    Fixture for a mock MongoDB database with a 'gadgets' collection using AsyncMock.
+    """
+    collection = MagicMock()
+    collection.find_one = AsyncMock(return_value=mock_gadget.copy())
+    collection.update_one = AsyncMock(return_value=None)
+
+    mongo_db = {"gadgets": collection}
+    return mongo_db
+
+
 #
 # widget fixtures
 #
@@ -133,11 +158,11 @@ def mock_widget_zap_task() -> WidgetZapTask:
 
 
 @pytest.fixture
-def mock_gadget_repository(mock_async_session: AsyncMock) -> GadgetRepository:
+def mock_gadget_repository(mock_mongo_db: AsyncMock) -> GadgetRepository:
     """
     Fixture to provide a mock GadgetRepository.
     """
-    return GadgetRepository(mock_async_session)
+    return GadgetRepository(mock_mongo_db)
 
 
 @pytest.fixture
@@ -157,7 +182,7 @@ def mock_gadget_read() -> GadgetRead:
     """
     Fixture to provide a test GadgetRead instance.
     """
-    return GadgetRead(id=1, name="Test Gadget", height="10", mass="5", force=20)
+    return GadgetRead(id="id-1", name="Test Gadget", height="10", mass="5", force=20)
 
 
 @pytest.fixture
@@ -168,7 +193,7 @@ def mock_gadget_zap_task() -> GadgetZapTask:
     return GadgetZapTask(
         uuid="uuid-here",
         state="PENDING",
-        id=1,
+        id="id-1",
         duration=1,
         runtime=0,
     )

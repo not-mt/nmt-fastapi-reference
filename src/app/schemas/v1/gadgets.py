@@ -27,7 +27,7 @@ class GadgetCreate(GadgetBase):
 class GadgetRead(GadgetBase):
     """Schema for reading a gadget, including additional attributes."""
 
-    id: int
+    id: str
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -42,6 +42,6 @@ class GadgetZapTask(BaseModel):
 
     uuid: str
     state: str = "UNKNOWN"
-    id: int
+    id: str
     duration: int
     runtime: int
