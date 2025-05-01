@@ -27,7 +27,7 @@ from app.services.v1.widgets import WidgetService
 logger = logging.getLogger(__name__)
 widgets_router = APIRouter(
     prefix="/v1/widgets",
-    tags=["Widget Operations"],
+    tags=["Widget Operations (SQLAlchemy)"],
     dependencies=[Depends(authenticate_headers)],
 )
 
@@ -145,8 +145,8 @@ async def widget_zap(
 @widgets_router.get(
     "/{widget_id}/zap/{task_uuid}/status",
     response_model=WidgetZapTask,
-    summary="View (read) a widget",
-    description="View (read) a widget",  # Override the docstring in Swagger UI
+    summary="View async task status",
+    description="View async task status",  # Override the docstring in Swagger UI
 )
 async def widget_zap_get_task(
     widget_id: int,
