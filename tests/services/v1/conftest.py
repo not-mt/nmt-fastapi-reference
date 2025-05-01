@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import argon2
 import pytest
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from nmtfast.settings.v1.schemas import AuthApiKeySettings, SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,14 @@ def mock_async_session() -> AsyncMock:
     Fixture to provide a mock AsyncSession.
     """
     return AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_mongo_db() -> AsyncMock:
+    """
+    Fixture to provide a mock AsyncIOMotorDatabase.
+    """
+    return AsyncMock(spec=AsyncIOMotorDatabase)
 
 
 @pytest.fixture
@@ -140,11 +149,11 @@ def mock_widget_zap_task() -> WidgetZapTask:
 
 
 @pytest.fixture
-def mock_gadget_repository(mock_async_session: AsyncMock) -> GadgetRepository:
+def mock_gadget_repository(mock_mongo_db: AsyncMock) -> GadgetRepository:
     """
     Fixture to provide a mock GadgetRepository.
     """
-    return GadgetRepository(mock_async_session)
+    return GadgetRepository(mock_mongo_db)
 
 
 @pytest.fixture
@@ -160,7 +169,7 @@ def mock_gadget_read() -> GadgetRead:
     """
     Fixture to provide a test GadgetRead instance.
     """
-    return GadgetRead(id=1, name="Test Gadget", height="10", mass="5", force=20)
+    return GadgetRead(id="id-1", name="Test Gadget", height="10", mass="5", force=20)
 
 
 @pytest.fixture
@@ -176,4 +185,6 @@ def mock_gadget_zap_task() -> GadgetZapTask:
     """
     Fixture for a sample GadgetZapTask.
     """
-    return GadgetZapTask(uuid="test-uuid", id=1, state="PENDING", duration=5, runtime=0)
+    return GadgetZapTask(
+        uuid="test-uuid", id="id-1", state="PENDING", duration=5, runtime=0
+    )

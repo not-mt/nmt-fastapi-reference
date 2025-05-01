@@ -32,7 +32,7 @@ def widget_zap_task(
     """
     Execute zap operation on a widget using sync SQLAlchemy session.
 
-    This task in a demonstration of how to run code in a Huey worker, using
+    This task in a demonstration of how to run code in a Huey worker.
 
     Args:
         request_id: Unique request ID that generated the task.
@@ -50,6 +50,8 @@ def widget_zap_task(
     """
     REQUEST_ID_CONTEXTVAR.set(request_id)  # use same request ID from API caller
     task_uuid = task.id
+
+    # TODO: look at using repository to fetch from DB
     db_widget = db_session.get(Widget, widget_id)
     assert db_widget is not None, f"Widget with ID {widget_id} not found"
     logger.debug(f"{task_uuid}: db_widget: {db_widget}")
@@ -67,6 +69,7 @@ def widget_zap_task(
         store_task_metadata(huey_app, task_uuid, task_md.model_dump())
         time.sleep(1)
 
+    # TODO: look at using repository to update resource in DB
     task_md.state = "SUCCESS"
     new_force = db_widget.force + 1
     db_widget.force = new_force

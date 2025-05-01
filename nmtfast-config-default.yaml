@@ -4,6 +4,7 @@ sqlalchemy:
   url: sqlite+aiosqlite:///./development.sqlite
 mongo:
   url: ''
+  db: nmt-fastapi-reference
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token
   id_providers: {}
@@ -39,7 +40,9 @@ logging:
   loggers:
     - name: aiosqlite
       level: INFO
+    - name: pymongo
+      level: INFO
 tasks:
-  name: nmt-fastapi-referencce
+  name: nmt-fastapi-reference
   backend: sqlite
   sqlite_filename: ./huey.sqlite

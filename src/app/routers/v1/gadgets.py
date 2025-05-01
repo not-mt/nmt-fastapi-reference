@@ -2,23 +2,18 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""
-Gadget API endpoints.
-
-This module defines API endpoints for managing gadgets, including creating gadgets.
-It utilizes FastAPI's dependency injection to handle SQLAlchemy sessions.
-"""
+"""This module defines API endpoints for managing gadgets."""
 
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from nmtfast.settings.v1.schemas import SectionACL
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.auth import authenticate_headers, get_acls
+from app.dependencies.v1.mongo import get_mongo_db
 from app.dependencies.v1.settings import get_settings
-from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.errors.v1.exceptions import NotFoundError
 from app.repositories.v1.gadgets import GadgetRepository
 from app.schemas.v1.gadgets import (
@@ -38,7 +33,7 @@ gadgets_router = APIRouter(
 
 
 def get_gadget_service(
-    db: AsyncSession = Depends(get_sql_db),
+    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
 ) -> GadgetService:
@@ -46,7 +41,7 @@ def get_gadget_service(
     Dependency function to provide a GadgetService instance.
 
     Args:
-        db: The asynchronous database session.
+        db: The asynchronous MongoDB database.
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
 
@@ -89,7 +84,7 @@ async def gadget_create(
     description="View (read) a gadget",  # Override the docstring in Swagger UI
 )
 async def gadget_get_by_id(
-    gadget_id: int,
+    gadget_id: str,
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetRead:
     """
@@ -122,7 +117,7 @@ async def gadget_get_by_id(
     description="Zap a gadget",  # Override the docstring in Swagger UI
 )
 async def gadget_zap(
-    gadget_id: int,
+    gadget_id: str,
     payload: GadgetZap,
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetZapTask:
@@ -154,7 +149,7 @@ async def gadget_zap(
     description="View (read) a gadget",  # Override the docstring in Swagger UI
 )
 async def gadget_zap_get_task(
-    gadget_id: int,
+    gadget_id: str,
     task_uuid: str,
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetZapTask:

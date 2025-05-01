@@ -2,12 +2,7 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""
-Widget API endpoints.
-
-This module defines API endpoints for managing widgets, including creating widgets.
-It utilizes FastAPI's dependency injection to handle SQLAlchemy sessions.
-"""
+"""This module defines API endpoints for managing widgets."""
 
 import logging
 

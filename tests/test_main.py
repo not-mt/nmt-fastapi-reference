@@ -26,6 +26,7 @@ def test_task_settings_redis_backend() -> None:
     )
 
     with patch("app.core.v1.settings.get_app_settings", return_value=test_app_settings):
+
         # NOTE: reload the module to re-execute the module-level code
         import importlib
 
@@ -44,6 +45,7 @@ def test_task_settings_sqlite_backend() -> None:
     )
 
     with patch("app.core.v1.settings.get_app_settings", return_value=test_app_settings):
+
         # NOTE: reload the module to re-execute the module-level code
         import importlib
 

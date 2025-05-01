@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies.v1.sqlalchemy import get_sql_db
+from app.dependencies.v1.mongo import get_mongo_db
 from app.errors.v1.exceptions import NotFoundError
 from app.main import app
 from app.repositories.v1.gadgets import GadgetRepository
@@ -54,22 +54,22 @@ async def test_gadget_create_endpoint_success(
 
 
 @pytest.mark.asyncio
-async def test_get_gadget_service_dependency(mock_async_session: AsyncMock):
+async def test_get_gadget_service_dependency(mock_mongo_db: AsyncMock):
     """Test the get_gadget_service dependency."""
 
     # Override the database dependency to use a mock session
-    def override_get_sql_db():
-        return mock_async_session
+    def override_get_mongo_db():
+        return mock_mongo_db
 
-    app.dependency_overrides[get_sql_db] = override_get_sql_db
+    app.dependency_overrides[get_mongo_db] = override_get_mongo_db
 
-    gadget_service = get_gadget_service(mock_async_session)
+    gadget_service = get_gadget_service(mock_mongo_db)
 
     assert isinstance(gadget_service, GadgetService)
     assert isinstance(gadget_service.gadget_repository, GadgetRepository)
-    assert gadget_service.gadget_repository.db == mock_async_session
+    assert gadget_service.gadget_repository.db == mock_mongo_db
 
-    app.dependency_overrides.pop(get_sql_db)
+    app.dependency_overrides.pop(get_mongo_db)
 
 
 @pytest.mark.asyncio
