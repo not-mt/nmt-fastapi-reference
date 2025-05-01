@@ -12,8 +12,11 @@ from nmtfast.settings.v1.schemas import AuthApiKeySettings, SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings, AuthSettings, LoggingSettings
+from app.repositories.v1.gadgets import GadgetRepository
 from app.repositories.v1.widgets import WidgetRepository
+from app.schemas.v1.gadgets import GadgetRead, GadgetZapTask
 from app.schemas.v1.widgets import WidgetRead, WidgetZapTask
+from app.services.v1.gadgets import GadgetService
 from app.services.v1.widgets import WidgetService
 
 ph = argon2.PasswordHasher()
@@ -77,6 +80,11 @@ def mock_async_session() -> AsyncMock:
     return AsyncMock(spec=AsyncSession)
 
 
+#
+# widget fixtures
+#
+
+
 @pytest.fixture
 def mock_widget_repository(mock_async_session: AsyncMock) -> WidgetRepository:
     """
@@ -111,6 +119,53 @@ def mock_widget_zap_task() -> WidgetZapTask:
     Fixture to provide a test WidgetZapTask instance.
     """
     return WidgetZapTask(
+        uuid="uuid-here",
+        state="PENDING",
+        id=1,
+        duration=1,
+        runtime=0,
+    )
+
+
+#
+# gadget fixtures
+#
+
+
+@pytest.fixture
+def mock_gadget_repository(mock_async_session: AsyncMock) -> GadgetRepository:
+    """
+    Fixture to provide a mock GadgetRepository.
+    """
+    return GadgetRepository(mock_async_session)
+
+
+@pytest.fixture
+def mock_gadget_service(
+    mock_gadget_repository: GadgetRepository,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+) -> GadgetService:
+    """
+    Fixture to provide a mock GadgetService.
+    """
+    return GadgetService(mock_gadget_repository, mock_allow_acls, mock_settings)
+
+
+@pytest.fixture
+def mock_gadget_read() -> GadgetRead:
+    """
+    Fixture to provide a test GadgetRead instance.
+    """
+    return GadgetRead(id=1, name="Test Gadget", height="10", mass="5", force=20)
+
+
+@pytest.fixture
+def mock_gadget_zap_task() -> GadgetZapTask:
+    """
+    Fixture to provide a test GadgetZapTask instance.
+    """
+    return GadgetZapTask(
         uuid="uuid-here",
         state="PENDING",
         id=1,
