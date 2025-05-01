@@ -24,6 +24,7 @@ from app.errors.v1.exception_handlers import (
     server_error_handler,
 )
 from app.errors.v1.exceptions import NotFoundError
+from app.routers.v1.gadgets import gadgets_router
 from app.routers.v1.widgets import widgets_router
 
 
@@ -43,6 +44,7 @@ def register_routers() -> None:
     Registers all API routers.
     """
     app.include_router(widgets_router)
+    app.include_router(gadgets_router)
 
 
 def register_exception_handlers() -> None:

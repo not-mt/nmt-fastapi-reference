@@ -2,7 +2,7 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""Business logic for widget resources."""
+"""Business logic for gadget resources."""
 
 import logging
 
@@ -18,35 +18,35 @@ from nmtfast.tasks.v1.huey import (
 from app.core.v1.settings import AppSettings
 from app.core.v1.tasks import huey_app
 from app.errors.v1.exceptions import NotFoundError
-from app.repositories.v1.widgets import WidgetRepositoryProtocol
-from app.schemas.v1.widgets import (
-    WidgetCreate,
-    WidgetRead,
-    WidgetZap,
-    WidgetZapTask,
+from app.repositories.v1.gadgets import GadgetRepositoryProtocol
+from app.schemas.v1.gadgets import (
+    GadgetCreate,
+    GadgetRead,
+    GadgetZap,
+    GadgetZapTask,
 )
-from app.tasks.v1.widgets import widget_zap_task
+from app.tasks.v1.gadgets import gadget_zap_task
 
 logger = logging.getLogger(__name__)
 
 
-class WidgetService:
+class GadgetService:
     """
-    Service layer for widget business logic.
+    Service layer for gadget business logic.
 
     Args:
-        widget_repository: The repository for widget data operations.
+        gadget_repository: The repository for gadget data operations.
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
     """
 
     def __init__(
         self,
-        widget_repository: WidgetRepositoryProtocol,
+        gadget_repository: GadgetRepositoryProtocol,
         acls: list,
         settings: AppSettings,
     ) -> None:
-        self.widget_repository: WidgetRepositoryProtocol = widget_repository
+        self.gadget_repository: GadgetRepositoryProtocol = gadget_repository
         self.acls = acls
         self.settings = settings
 
@@ -61,69 +61,69 @@ class WidgetService:
         Raises:
             AuthorizationError: API key / OAuth client is not authorized.
         """
-        if not await check_acl("widgets", acls, permission):
+        if not await check_acl("gadgets", acls, permission):
             raise AuthorizationError(f"Not authorized to '{permission}'")
 
-    async def widget_create(self, input_widget: WidgetCreate) -> WidgetRead:
+    async def gadget_create(self, input_gadget: GadgetCreate) -> GadgetRead:
         """
-        Create a new widget.
+        Create a new gadget.
 
         Args:
-            input_widget: The widget data provided by the client.
+            input_gadget: The gadget data provided by the client.
 
         Returns:
-            WidgetRead: The newly created widget as a Pydantic model.
+            GadgetRead: The newly created gadget as a Pydantic model.
         """
         await self._is_authz(self.acls, "create")
-        db_widget = await self.widget_repository.widget_create(input_widget)
+        db_gadget = await self.gadget_repository.gadget_create(input_gadget)
 
-        return WidgetRead.model_validate(db_widget)
+        return GadgetRead.model_validate(db_gadget)
 
-    async def widget_get_by_id(self, widget_id: int) -> WidgetRead:
+    async def gadget_get_by_id(self, gadget_id: int) -> GadgetRead:
         """
-        Retrieve a widget by its ID.
+        Retrieve a gadget by its ID.
 
         Args:
-            widget_id: The ID of the widget to retrieve.
+            gadget_id: The ID of the gadget to retrieve.
 
         Raises:
-            NotFoundError: If the widget is not found.
+            NotFoundError: If the gadget is not found.
 
         Returns:
-            WidgetRead: The retrieved widget.
+            GadgetRead: The retrieved gadget.
         """
         await self._is_authz(self.acls, "read")
-        db_widget = await self.widget_repository.get_by_id(widget_id)
+        db_gadget = await self.gadget_repository.get_by_id(gadget_id)
 
-        if not db_widget:
-            raise NotFoundError(widget_id, "Widget")
+        if not db_gadget:
+            raise NotFoundError(gadget_id, "Gadget")
 
-        return WidgetRead.model_validate(db_widget)
+        return GadgetRead.model_validate(db_gadget)
 
-    async def widget_zap(self, widget_id: int, payload: WidgetZap) -> WidgetZapTask:
+    async def gadget_zap(self, gadget_id: int, payload: GadgetZap) -> GadgetZapTask:
         """
-        Zap an existing widget.
+        Zap an existing gadget.
 
         Args:
-            widget_id: The ID of the widget to zap.
+            gadget_id: The ID of the gadget to zap.
             payload: Parameters for the async task.
 
         Raises:
-            NotFoundError: If the widget is not found.
+            NotFoundError: If the gadget is not found.
 
         Returns:
-            WidgetZapTask: Information about the newly created task.
+            GadgetZapTask: Information about the newly created task.
         """
         await self._is_authz(self.acls, "zap")
 
-        db_widget = await self.widget_repository.get_by_id(widget_id)
-        if not db_widget:
-            raise NotFoundError(widget_id, "Widget")
+        db_gadget = await self.gadget_repository.get_by_id(gadget_id)
+        if not db_gadget:
+            raise NotFoundError(gadget_id, "Gadget")
 
         # start the async task and report the uuid
-        result = widget_zap_task(
+        result = gadget_zap_task(
             REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
-            widget_id,
+            gadget_id,
             duration=payload.duration,
         )
         task_uuid = "PENDING"
@@ -133,43 +133,43 @@ class WidgetService:
 
         task_md = {
             "uuid": task_uuid,
-            "id": widget_id,
+            "id": gadget_id,
             "state": "PENDING",
             "duration": payload.duration,
             "runtime": 0,
         }
         store_task_metadata(huey_app, task_uuid, task_md)
 
-        return WidgetZapTask.model_validate(task_md)
+        return GadgetZapTask.model_validate(task_md)
 
-    async def widget_zap_by_uuid(
+    async def gadget_zap_by_uuid(
         self,
-        widget_id: int,
+        gadget_id: int,
         task_uuid: str,
-    ) -> WidgetZapTask:
+    ) -> GadgetZapTask:
         """
-        Retrieve a widget by its ID.
+        Retrieve a gadget by its ID.
 
         Args:
-            widget_id: The ID of the widget.
+            gadget_id: The ID of the gadget.
             task_uuid: The UUID of the async task.
 
         Raises:
-            NotFoundError: If the widget is not found.
+            NotFoundError: If the gadget is not found.
 
         Returns:
-            WidgetZapTask: The retrieved widget.
+            GadgetZapTask: The retrieved gadget.
         """
         await self._is_authz(self.acls, "read")
 
-        db_widget = await self.widget_repository.get_by_id(widget_id)
-        if not db_widget:
-            raise NotFoundError(widget_id, "Widget")
+        db_gadget = await self.gadget_repository.get_by_id(gadget_id)
+        if not db_gadget:
+            raise NotFoundError(gadget_id, "Gadget")
 
         # NOTE: missing result might mean the task is still running
         task_result = fetch_task_result(huey_app, task_uuid)
         if task_result:
-            return WidgetZapTask.model_validate(task_result)
+            return GadgetZapTask.model_validate(task_result)
 
         # no result and no running metadata is a problem
         task_md = fetch_task_metadata(huey_app, task_uuid)
@@ -177,4 +177,4 @@ class WidgetService:
             logger.debug(f"Task metadata not found for {task_uuid}")
             raise NotFoundError(task_uuid, "Task")
 
-        return WidgetZapTask.model_validate(task_md)
+        return GadgetZapTask.model_validate(task_md)
