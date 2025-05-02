@@ -7,10 +7,35 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.v1.widgets import Widget
 from app.repositories.v1.widgets import WidgetRepository
 from app.schemas.v1.widgets import WidgetCreate
+
+
+@pytest.fixture
+def mock_async_session() -> AsyncMock:
+    """
+    Fixture to provide a mock AsyncSession.
+    """
+    return AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_widget_create() -> WidgetCreate:
+    """
+    Fixture to provide a test WidgetCreate instance.
+    """
+    return WidgetCreate(name="Test Widget")
+
+
+@pytest.fixture
+def mock_db_widget():
+    """
+    Fixture to create a mock Widget database object.
+    """
+    return Widget(id=1, name="Test Widget", height="10cm", mass="5kg", force=20)
 
 
 @pytest.mark.asyncio

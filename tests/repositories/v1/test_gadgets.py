@@ -4,13 +4,55 @@
 
 """Unit tests for repository layer using MongoDB."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
 import pytest
 
 from app.repositories.v1.gadgets import GadgetRepository
-from app.schemas.v1.gadgets import GadgetRead
+from app.schemas.v1.gadgets import GadgetCreate, GadgetRead
+
+
+@pytest.fixture
+def mock_gadget_create() -> GadgetCreate:
+    """
+    Fixture to provide a test GadgetCreate instance.
+    """
+    return GadgetCreate(
+        id="123e4567-e89b-12d3-a456-426614174000",
+        name="Test Gadget",
+        height="10cm",
+        mass="5kg",
+        force=20,
+    )
+
+
+@pytest.fixture
+def mock_db_gadget() -> dict:
+    """
+    Fixture to return a fake gadget document as it would appear in MongoDB (with 'id').
+    """
+    return {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "name": "Test Gadget",
+        "height": "10cm",
+        "mass": "5kg",
+        "force": 20,
+    }
+
+
+@pytest.fixture
+def mock_mongo_db(mock_db_gadget):
+    """
+    Fixture for a mock MongoDB database with a 'gadgets' collection using AsyncMock.
+    """
+    collection = MagicMock()
+    collection.find_one = AsyncMock(return_value=mock_db_gadget.copy())
+    collection.insert_one = AsyncMock(return_value=mock_db_gadget.copy())
+    collection.update_one = AsyncMock(return_value=None)
+
+    mongo_db = {"gadgets": collection}
+    return mongo_db
 
 
 async def test_gadget_create(mock_mongo_db, mock_gadget_create, mock_db_gadget):
