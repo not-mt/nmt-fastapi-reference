@@ -10,11 +10,61 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pytest
 from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.settings.v1.schemas import SectionACL
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings
 from app.errors.v1.exceptions import NotFoundError
+from app.repositories.v1.widgets import WidgetRepository
 from app.schemas.v1.widgets import WidgetCreate, WidgetRead, WidgetZap, WidgetZapTask
 from app.services.v1.widgets import WidgetService
+
+
+@pytest.fixture
+def mock_async_session() -> AsyncMock:
+    """
+    Fixture to provide a mock AsyncSession.
+    """
+    return AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_widget_repository(mock_async_session: AsyncMock) -> WidgetRepository:
+    """
+    Fixture to provide a mock WidgetRepository.
+    """
+    return WidgetRepository(mock_async_session)
+
+
+@pytest.fixture
+def mock_widget_create() -> WidgetCreate:
+    """
+    Fixture to provide a test WidgetCreate instance.
+    """
+    return WidgetCreate(name="Test Widget")
+
+
+@pytest.fixture
+def mock_widget_read() -> WidgetRead:
+    """
+    Fixture to provide a test WidgetRead instance.
+    """
+    return WidgetRead(id=1, name="Test Widget", height="10", mass="5", force=20)
+
+
+@pytest.fixture
+def mock_widget_zap() -> WidgetZap:
+    """
+    Fixture for a sample WidgetZap payload.
+    """
+    return WidgetZap(duration=5)
+
+
+@pytest.fixture
+def mock_widget_zap_task() -> WidgetZapTask:
+    """
+    Fixture for a sample WidgetZapTask.
+    """
+    return WidgetZapTask(uuid="test-uuid", id=1, state="PENDING", duration=5, runtime=0)
 
 
 @pytest.mark.asyncio

@@ -4,9 +4,33 @@
 
 """Tests for widget tasks."""
 
+from unittest.mock import MagicMock
+
+import pytest
+
 from app.models.v1.widgets import Widget
 from app.schemas.v1.widgets import WidgetZapTask
 from app.tasks.v1.widgets import widget_zap_task
+
+
+@pytest.fixture
+def mock_widget():
+    """
+    Fixture for a mock widget.
+    """
+    return Widget(id=1, name="Test Widget", force=10)
+
+
+@pytest.fixture
+def mock_db_session(mock_widget):
+    """
+    Fixture for a mock SQLAlchemy session.
+    """
+    session = MagicMock()
+    session.get.return_value = mock_widget
+    session.commit.return_value = None
+
+    return session
 
 
 def test_widget_zap_task(monkeypatch, mock_db_session, mock_task):

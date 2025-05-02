@@ -13,8 +13,51 @@ from nmtfast.settings.v1.schemas import SectionACL
 
 from app.core.v1.settings import AppSettings
 from app.errors.v1.exceptions import NotFoundError
+from app.repositories.v1.gadgets import GadgetRepository
 from app.schemas.v1.gadgets import GadgetCreate, GadgetRead, GadgetZap, GadgetZapTask
 from app.services.v1.gadgets import GadgetService
+
+
+@pytest.fixture
+def mock_gadget_repository(mock_mongo_db: AsyncMock) -> GadgetRepository:
+    """
+    Fixture to provide a mock GadgetRepository.
+    """
+    return GadgetRepository(mock_mongo_db)
+
+
+@pytest.fixture
+def mock_gadget_create() -> GadgetCreate:
+    """
+    Fixture to provide a test GadgetCreate instance.
+    """
+    return GadgetCreate(name="Test Gadget")
+
+
+@pytest.fixture
+def mock_gadget_read() -> GadgetRead:
+    """
+    Fixture to provide a test GadgetRead instance.
+    """
+    return GadgetRead(id="id-1", name="Test Gadget", height="10", mass="5", force=20)
+
+
+@pytest.fixture
+def mock_gadget_zap() -> GadgetZap:
+    """
+    Fixture for a sample GadgetZap payload.
+    """
+    return GadgetZap(duration=5)
+
+
+@pytest.fixture
+def mock_gadget_zap_task() -> GadgetZapTask:
+    """
+    Fixture for a sample GadgetZapTask.
+    """
+    return GadgetZapTask(
+        uuid="test-uuid", id="id-1", state="PENDING", duration=5, runtime=0
+    )
 
 
 @pytest.mark.asyncio

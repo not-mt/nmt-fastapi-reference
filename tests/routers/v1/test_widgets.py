@@ -8,7 +8,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+from nmtfast.settings.v1.schemas import SectionACL
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.v1.settings import AppSettings
 from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.errors.v1.exceptions import NotFoundError
 from app.main import app
@@ -18,6 +21,56 @@ from app.schemas.v1.widgets import WidgetRead, WidgetZapTask
 from app.services.v1.widgets import WidgetService
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def mock_async_session() -> AsyncMock:
+    """
+    Fixture to provide a mock AsyncSession.
+    """
+    return AsyncMock(spec=AsyncSession)
+
+
+@pytest.fixture
+def mock_widget_repository(mock_async_session: AsyncMock) -> WidgetRepository:
+    """
+    Fixture to provide a mock WidgetRepository.
+    """
+    return WidgetRepository(mock_async_session)
+
+
+@pytest.fixture
+def mock_widget_service(
+    mock_widget_repository: WidgetRepository,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+) -> WidgetService:
+    """
+    Fixture to provide a mock WidgetService.
+    """
+    return WidgetService(mock_widget_repository, mock_allow_acls, mock_settings)
+
+
+@pytest.fixture
+def mock_widget_read() -> WidgetRead:
+    """
+    Fixture to provide a test WidgetRead instance.
+    """
+    return WidgetRead(id=1, name="Test Widget", height="10", mass="5", force=20)
+
+
+@pytest.fixture
+def mock_widget_zap_task() -> WidgetZapTask:
+    """
+    Fixture to provide a test WidgetZapTask instance.
+    """
+    return WidgetZapTask(
+        uuid="uuid-here",
+        state="PENDING",
+        id=1,
+        duration=1,
+        runtime=0,
+    )
 
 
 @pytest.mark.asyncio

@@ -4,8 +4,37 @@
 
 """Tests for gadget tasks."""
 
+from unittest.mock import MagicMock
+
+import pytest
+
 from app.schemas.v1.gadgets import GadgetZapTask
 from app.tasks.v1.gadgets import gadget_zap_task
+
+
+@pytest.fixture
+def mock_gadget():
+    """
+    Fixture for a mock gadget dict (as stored in MongoDB).
+    """
+    return {
+        "id": "id-1",
+        "name": "ZapBot 5000",
+        "force": 5,
+    }
+
+
+@pytest.fixture
+def mock_mongo_db(mock_gadget):
+    """
+    Fixture for a mock MongoDB database with a 'gadgets' collection.
+    """
+    collection = MagicMock()
+    collection.find_one.return_value = mock_gadget.copy()
+    collection.update_one.return_value = None
+    mongo_db = {"gadgets": collection}
+
+    return mongo_db
 
 
 def test_gadget_zap_task(monkeypatch, mock_mongo_db, mock_task, mock_gadget):

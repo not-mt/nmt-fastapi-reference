@@ -4,11 +4,13 @@
 
 """Unit tests for router layer."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from nmtfast.settings.v1.schemas import SectionACL
 
+from app.core.v1.settings import AppSettings
 from app.dependencies.v1.mongo import get_mongo_db
 from app.errors.v1.exceptions import NotFoundError
 from app.main import app
@@ -18,6 +20,73 @@ from app.schemas.v1.gadgets import GadgetRead, GadgetZapTask
 from app.services.v1.gadgets import GadgetService
 
 client = TestClient(app)
+
+
+@pytest.fixture
+def mock_gadget():
+    """
+    Fixture for a mock gadget dict (as stored in MongoDB).
+    """
+    return {
+        "id": "id-1",
+        "name": "ZapBot 5000",
+        "force": 5,
+    }
+
+
+@pytest.fixture
+def mock_mongo_db(mock_gadget):
+    """
+    Fixture for a mock MongoDB database with a 'gadgets' collection using AsyncMock.
+    """
+    collection = MagicMock()
+    collection.find_one = AsyncMock(return_value=mock_gadget.copy())
+    collection.update_one = AsyncMock(return_value=None)
+
+    mongo_db = {"gadgets": collection}
+    return mongo_db
+
+
+@pytest.fixture
+def mock_gadget_repository(mock_mongo_db: AsyncMock) -> GadgetRepository:
+    """
+    Fixture to provide a mock GadgetRepository.
+    """
+    return GadgetRepository(mock_mongo_db)
+
+
+@pytest.fixture
+def mock_gadget_service(
+    mock_gadget_repository: GadgetRepository,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+) -> GadgetService:
+    """
+    Fixture to provide a mock GadgetService.
+    """
+    return GadgetService(mock_gadget_repository, mock_allow_acls, mock_settings)
+
+
+@pytest.fixture
+def mock_gadget_read() -> GadgetRead:
+    """
+    Fixture to provide a test GadgetRead instance.
+    """
+    return GadgetRead(id="id-1", name="Test Gadget", height="10", mass="5", force=20)
+
+
+@pytest.fixture
+def mock_gadget_zap_task() -> GadgetZapTask:
+    """
+    Fixture to provide a test GadgetZapTask instance.
+    """
+    return GadgetZapTask(
+        uuid="uuid-here",
+        state="PENDING",
+        id="id-1",
+        duration=1,
+        runtime=0,
+    )
 
 
 @pytest.mark.asyncio
