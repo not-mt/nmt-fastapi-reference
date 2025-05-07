@@ -8,10 +8,12 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.auth import authenticate_headers, get_acls
+from app.dependencies.v1.cache import get_cache
 from app.dependencies.v1.mongo import get_mongo_db
 from app.dependencies.v1.settings import get_settings
 from app.errors.v1.exceptions import NotFoundError
@@ -36,6 +38,7 @@ def get_gadget_service(
     db: AsyncIOMotorDatabase = Depends(get_mongo_db),
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
+    cache: AppCacheBase = Depends(get_cache),
 ) -> GadgetService:
     """
     Dependency function to provide a GadgetService instance.
@@ -44,13 +47,14 @@ def get_gadget_service(
         db: The asynchronous MongoDB database.
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
+        cache: An implementation of AppCacheBase, for getting/setting cache data.
 
     Returns:
         GadgetService: An instance of the gadget service.
     """
     gadget_repository = GadgetRepository(db)
 
-    return GadgetService(gadget_repository, acls, settings)
+    return GadgetService(gadget_repository, acls, settings, cache)
 
 
 @gadgets_router.post(

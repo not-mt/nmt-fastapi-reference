@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 
 from app.core.v1.settings import AppSettings
@@ -48,6 +49,11 @@ def mock_mongo_db(mock_gadget):
 
 
 @pytest.fixture
+def mock_cache():
+    return AsyncMock(spec=AppCacheBase)
+
+
+@pytest.fixture
 def mock_gadget_repository(mock_mongo_db: AsyncMock) -> GadgetRepository:
     """
     Fixture to provide a mock GadgetRepository.
@@ -60,11 +66,14 @@ def mock_gadget_service(
     mock_gadget_repository: GadgetRepository,
     mock_allow_acls: list[SectionACL],
     mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
 ) -> GadgetService:
     """
     Fixture to provide a mock GadgetService.
     """
-    return GadgetService(mock_gadget_repository, mock_allow_acls, mock_settings)
+    return GadgetService(
+        mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
 
 
 @pytest.fixture

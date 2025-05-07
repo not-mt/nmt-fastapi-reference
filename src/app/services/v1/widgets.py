@@ -8,6 +8,7 @@ import logging
 
 from nmtfast.auth.v1.acl import check_acl
 from nmtfast.auth.v1.exceptions import AuthorizationError
+from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.middleware.v1.request_id import REQUEST_ID_CONTEXTVAR
 from nmtfast.tasks.v1.huey import (
     fetch_task_metadata,
@@ -38,6 +39,7 @@ class WidgetService:
         widget_repository: The repository for widget data operations.
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
+        cache: An implementation of AppCacheBase, for getting/setting cached data.
     """
 
     def __init__(
@@ -45,10 +47,12 @@ class WidgetService:
         widget_repository: WidgetRepositoryProtocol,
         acls: list,
         settings: AppSettings,
+        cache: AppCacheBase,
     ) -> None:
         self.widget_repository: WidgetRepositoryProtocol = widget_repository
         self.acls = acls
         self.settings = settings
+        self.cache = cache
 
     async def _is_authz(self, acls: list, permission: str) -> None:
         """

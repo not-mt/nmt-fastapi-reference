@@ -7,11 +7,13 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.auth import authenticate_headers, get_acls
+from app.dependencies.v1.cache import get_cache
 from app.dependencies.v1.settings import get_settings
 from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.errors.v1.exceptions import NotFoundError
@@ -36,6 +38,7 @@ def get_widget_service(
     db: AsyncSession = Depends(get_sql_db),
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
+    cache: AppCacheBase = Depends(get_cache),
 ) -> WidgetService:
     """
     Dependency function to provide a WidgetService instance.
@@ -44,13 +47,14 @@ def get_widget_service(
         db: The asynchronous database session.
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
+        cache: An implementation of AppCacheBase, used for getting/setting cache data.
 
     Returns:
         WidgetService: An instance of the widget service.
     """
     widget_repository = WidgetRepository(db)
 
-    return WidgetService(widget_repository, acls, settings)
+    return WidgetService(widget_repository, acls, settings, cache)
 
 
 @widgets_router.post(
