@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +33,11 @@ def mock_async_session() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_cache():
+    return AsyncMock(spec=AppCacheBase)
+
+
+@pytest.fixture
 def mock_widget_repository(mock_async_session: AsyncMock) -> WidgetRepository:
     """
     Fixture to provide a mock WidgetRepository.
@@ -44,11 +50,14 @@ def mock_widget_service(
     mock_widget_repository: WidgetRepository,
     mock_allow_acls: list[SectionACL],
     mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
 ) -> WidgetService:
     """
     Fixture to provide a mock WidgetService.
     """
-    return WidgetService(mock_widget_repository, mock_allow_acls, mock_settings)
+    return WidgetService(
+        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
 
 
 @pytest.fixture

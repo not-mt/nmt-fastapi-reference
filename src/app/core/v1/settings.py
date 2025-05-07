@@ -7,7 +7,12 @@
 import logging
 
 from nmtfast.settings.v1.config_files import get_config_files, load_config
-from nmtfast.settings.v1.schemas import AuthSettings, LoggingSettings, Tasks
+from nmtfast.settings.v1.schemas import (
+    AuthSettings,
+    CacheSettings,
+    LoggingSettings,
+    Tasks,
+)
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -101,6 +106,11 @@ class AppSettings(BaseSettings):
         backend="sqlite",
         url="redis://:FIXME_password@FIXME_host:6379/FIXME_db_number",
         sqlite_filename="./huey.sqlite",
+    )
+    cache: CacheSettings = CacheSettings(
+        name="nmt-fastapi-reference",
+        backend="huey",
+        ttl=3600 * 4,
     )
 
     model_config = SettingsConfigDict(extra="ignore")
