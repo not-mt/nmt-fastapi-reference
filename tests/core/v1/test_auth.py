@@ -80,8 +80,15 @@ async def test_process_api_key_header_empty_key(mock_settings, mock_cache):
     """
     Test API key authentication fails with empty key.
     """
+    # test mode "authn"
     with pytest.raises(HTTPException) as exc:
-        await process_api_key_header("", mock_settings, mock_cache)
+        await process_api_key_header("", mock_settings, mock_cache, "authn")
+    assert exc.value.status_code == 403
+    assert "Invalid API key" in exc.value.detail
+
+    # test mode "authz"
+    with pytest.raises(HTTPException) as exc:
+        await process_api_key_header("", mock_settings, mock_cache, "authz")
     assert exc.value.status_code == 403
     assert "Invalid API key" in exc.value.detail
 
@@ -96,36 +103,53 @@ async def test_process_api_key_header_cached_success(
     auth_info = AuthSuccess(name="valid-key", acls=mock_acls)
     mock_cache.fetch_app_cache.return_value = auth_info.model_dump_json()
 
-    result = await process_api_key_header("valid-key", mock_settings, mock_cache)
+    # test mode "authn"
+    result = await process_api_key_header(
+        "valid-key", mock_settings, mock_cache, "authn"
+    )
+    assert len(result) == 1
+    assert result[0].permissions == ["*"]
 
+    # test mode "authz"
+    result = await process_api_key_header(
+        "valid-key", mock_settings, mock_cache, "authz"
+    )
     assert len(result) == 1
     assert result[0].permissions == ["*"]
 
 
 @pytest.mark.asyncio
-async def test_process_api_key_header_cache_miss_success(
+async def test_process_api_key_header_authn_cache_miss_success(
     mock_settings, mock_cache, mock_api_key
 ):
     """
-    Test API key authentication with cache miss but successful auth.
+    Test API key authentication with cache miss but successful authn.
     """
+    # test mode "authn"
     mock_cache.fetch_app_cache.return_value = None
-    result = await process_api_key_header(mock_api_key, mock_settings, mock_cache)
+    result = await process_api_key_header(
+        mock_api_key, mock_settings, mock_cache, "authn"
+    )
     assert len(result) == 1
     assert result[0].permissions == ["*"]
     mock_cache.store_app_cache.assert_called_once()
 
 
-# @pytest.mark.asyncio
-# async def test_process_api_key_header_invalid_cached_json(mock_settings, mock_cache):
-#     """
-#     Test API key authentication fails with invalid cached JSON.
-#     """
-#     mock_cache.fetch_app_cache.return_value = "{invalid-json}"
-#     with pytest.raises(HTTPException) as exc:
-#         await process_api_key_header("any-key", mock_settings, mock_cache)
-#     assert exc.value.status_code == 403
-#     assert "Invalid" in exc.value.detail
+@pytest.mark.asyncio
+async def test_process_api_key_header_authz_cache_miss_success(
+    mock_settings, mock_cache, mock_api_key
+):
+    """
+    Test API key authentication with cache miss but successful authz.
+    """
+    # test mode "authz"
+    mock_cache.fetch_app_cache.return_value = None
+    result = await process_api_key_header(
+        mock_api_key, mock_settings, mock_cache, "authz"
+    )
+    assert len(result) == 1
+    assert result[0].permissions == ["*"]
+    mock_cache.store_app_cache.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -133,13 +157,25 @@ async def test_process_api_key_header_auth_error(mock_settings, mock_cache):
     """
     Test API key authentication with authentication error.
     """
-    mock_cache.fetch_app_cache.return_value = None
     with patch(
         "app.core.v1.auth.authenticate_api_key",
         new=AsyncMock(side_effect=AuthenticationError("Invalid key")),
     ):
+        # test mode "authn"
+        mock_cache.fetch_app_cache.return_value = None
         with pytest.raises(HTTPException) as exc:
-            await process_api_key_header("invalid-key", mock_settings, mock_cache)
+            await process_api_key_header(
+                "invalid-key", mock_settings, mock_cache, "authn"
+            )
+        assert exc.value.status_code == 403
+        assert "Invalid key" in exc.value.detail
+
+        # test mode "authz"
+        mock_cache.fetch_app_cache.return_value = None
+        with pytest.raises(HTTPException) as exc:
+            await process_api_key_header(
+                "invalid-key", mock_settings, mock_cache, "authz"
+            )
         assert exc.value.status_code == 403
         assert "Invalid key" in exc.value.detail
 
@@ -150,8 +186,15 @@ async def test_process_bearer_token_empty_token(mock_settings, mock_cache):
     """
     Test bearer token authentication with empty token.
     """
+    # test mode authn
     with pytest.raises(HTTPException) as exc:
-        await process_bearer_token("", mock_settings, mock_cache)
+        await process_bearer_token("", mock_settings, mock_cache, "authn")
+    assert exc.value.status_code == 401
+    assert "Missing or invalid" in exc.value.detail
+
+    # test mode authz
+    with pytest.raises(HTTPException) as exc:
+        await process_bearer_token("", mock_settings, mock_cache, "authz")
     assert exc.value.status_code == 401
     assert "Missing or invalid" in exc.value.detail
 
@@ -161,8 +204,19 @@ async def test_process_bearer_token_invalid_format(mock_settings, mock_cache):
     """
     Test bearer token authentication with invalid JWT format.
     """
+    # test mode authn
     with pytest.raises(HTTPException) as exc:
-        await process_bearer_token("invalid-token-format", mock_settings, mock_cache)
+        await process_bearer_token(
+            "invalid-token-format", mock_settings, mock_cache, "authn"
+        )
+    assert exc.value.status_code == 403
+    assert "Invalid token" in exc.value.detail
+
+    # test mode authz
+    with pytest.raises(HTTPException) as exc:
+        await process_bearer_token(
+            "invalid-token-format", mock_settings, mock_cache, "authz"
+        )
     assert exc.value.status_code == 403
     assert "Invalid token" in exc.value.detail
 
@@ -176,25 +230,57 @@ async def test_process_bearer_token_cached_success(
     """
     auth_info = AuthSuccess(name="valid.jwt.token", acls=mock_acls)
     mock_cache.fetch_app_cache.return_value = auth_info.model_dump_json()
-    result = await process_bearer_token("valid.jwt.token", mock_settings, mock_cache)
+
+    # test mode authn
+    result = await process_bearer_token(
+        "valid.jwt.token", mock_settings, mock_cache, "authn"
+    )
+    assert len(result) == 1
+    assert result[0].permissions == ["*"]
+
+    # test mode authz
+    result = await process_bearer_token(
+        "valid.jwt.token", mock_settings, mock_cache, "authz"
+    )
     assert len(result) == 1
     assert result[0].permissions == ["*"]
 
 
 @pytest.mark.asyncio
-async def test_process_bearer_token_cache_miss_success(
+async def test_process_bearer_token_authn_cache_miss_success(
     mock_settings, mock_cache, mock_auth_info
 ):
     """
-    Test bearer token authentication with cache miss but successful auth.
+    Test bearer token authentication with cache miss but successful authn.
     """
-    mock_cache.fetch_app_cache.return_value = None
     with patch(
         "app.core.v1.auth.authenticate_token",
         new=AsyncMock(return_value=mock_auth_info),
     ):
+        # test mode authn
+        mock_cache.fetch_app_cache.return_value = None
         result = await process_bearer_token(
-            "valid.jwt.token", mock_settings, mock_cache
+            "valid.jwt.token", mock_settings, mock_cache, "authn"
+        )
+        assert len(result) == 1
+        mock_cache.store_app_cache.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_process_bearer_token_authz_cache_miss_success(
+    mock_settings, mock_cache, mock_auth_info
+):
+    """
+    Test bearer token authentication with cache miss but successful authz.
+    """
+    with patch(
+        "app.core.v1.auth.authenticate_token",
+        new=AsyncMock(return_value=mock_auth_info),
+    ):
+        # test mode authz
+        mock_cache.fetch_app_cache.return_value = None
+        result = await process_bearer_token(
+            "valid.jwt.token", mock_settings, mock_cache, "authz"
         )
         assert len(result) == 1
         mock_cache.store_app_cache.assert_called_once()
@@ -210,8 +296,19 @@ async def test_process_bearer_token_auth_error(mock_settings, mock_cache):
         "app.core.v1.auth.authenticate_token",
         new=AsyncMock(side_effect=AuthenticationError("Invalid token")),
     ):
+        # test mode authn
         with pytest.raises(HTTPException) as exc:
-            await process_bearer_token("invalid.jwt.token", mock_settings, mock_cache)
+            await process_bearer_token(
+                "invalid.jwt.token", mock_settings, mock_cache, "authn"
+            )
+        assert exc.value.status_code == 403
+        assert "Invalid token" in exc.value.detail
+
+        # test mode authz
+        with pytest.raises(HTTPException) as exc:
+            await process_bearer_token(
+                "invalid.jwt.token", mock_settings, mock_cache, "authz"
+            )
         assert exc.value.status_code == 403
         assert "Invalid token" in exc.value.detail
 
@@ -221,10 +318,22 @@ async def test_process_bearer_token_no_acls_returned(mock_settings, mock_cache):
     """
     Test bearer token authentication when no ACLs are returned.
     """
-    mock_cache.fetch_app_cache.return_value = None
     with patch("app.core.v1.auth.authenticate_token", new=AsyncMock(return_value=[])):
+        # test mode authn
+        mock_cache.fetch_app_cache.return_value = None
         with pytest.raises(HTTPException) as exc:
-            await process_bearer_token("valid.jwt.token", mock_settings, mock_cache)
+            await process_bearer_token(
+                "valid.jwt.token", mock_settings, mock_cache, "authn"
+            )
+        assert exc.value.status_code == 403
+        assert "no permissions" in exc.value.detail
+
+        # test mode authz
+        mock_cache.fetch_app_cache.return_value = None
+        with pytest.raises(HTTPException) as exc:
+            await process_bearer_token(
+                "valid.jwt.token", mock_settings, mock_cache, "authz"
+            )
         assert exc.value.status_code == 403
         assert "no permissions" in exc.value.detail
 
@@ -236,10 +345,22 @@ async def test_process_api_key_header_auth_returns_no_acls(
     """
     Test API key authentication when authenticate_api_key returns no ACLs.
     """
-    mock_cache.fetch_app_cache.return_value = None
     with patch(
         "app.core.v1.auth.authenticate_api_key", new=AsyncMock(return_value=[])
     ):  # explicitly return empty list
-        result = await process_api_key_header(mock_api_key, mock_settings, mock_cache)
+
+        # test mode "authn"
+        mock_cache.fetch_app_cache.return_value = None
+        result = await process_api_key_header(
+            mock_api_key, mock_settings, mock_cache, "authn"
+        )
+        assert result == []
+        mock_cache.store_app_cache.assert_not_called()  # should not store empty ACLs
+
+        # test mode "authz"
+        mock_cache.fetch_app_cache.return_value = None
+        result = await process_api_key_header(
+            mock_api_key, mock_settings, mock_cache, "authz"
+        )
         assert result == []
         mock_cache.store_app_cache.assert_not_called()  # should not store empty ACLs

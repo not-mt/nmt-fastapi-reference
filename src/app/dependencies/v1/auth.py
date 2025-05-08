@@ -66,7 +66,7 @@ async def authenticate_headers(
     # check API key authentication (if provided)
     if api_key:
         try:
-            acls = await process_api_key_header(api_key, settings, cache)
+            acls = await process_api_key_header(api_key, settings, cache, "authn")
             if acls:
                 return "API key successfully authenticated."
         except AuthenticationError as exc:
@@ -77,7 +77,7 @@ async def authenticate_headers(
     # check token authentication (if provided)
     if token:
         try:
-            acls = await process_bearer_token(token, settings, cache)
+            acls = await process_bearer_token(token, settings, cache, "authn")
             if acls:
                 return "Bearer token successfully authenticated."
         except AuthenticationError as exc:
@@ -115,7 +115,7 @@ async def get_acls(
     # check API key authentication (if provided)
     if api_key:
         try:
-            acls = await process_api_key_header(api_key, settings, cache)
+            acls = await process_api_key_header(api_key, settings, cache, "authz")
         except AuthenticationError as exc:
             raise HTTPException(status_code=403, detail=f"Invalid API key: {exc}")
 
@@ -126,7 +126,7 @@ async def get_acls(
             raise HTTPException(status_code=403, detail="Invalid token")
 
         try:
-            acls = await process_bearer_token(token, settings, cache)
+            acls = await process_bearer_token(token, settings, cache, "authz")
         except AuthenticationError as exc:
             raise HTTPException(status_code=403, detail=f"Invalid token: {exc}")
 
