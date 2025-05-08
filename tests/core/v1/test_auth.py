@@ -4,12 +4,12 @@
 
 """Unit tests for core authentication functions."""
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import argon2
 import pytest
 from fastapi import HTTPException
+from nmtfast.auth.v1.acl import AuthSuccess
 from nmtfast.auth.v1.exceptions import AuthenticationError
 from nmtfast.settings.v1.schemas import AuthApiKeySettings, AuthSettings, SectionACL
 
@@ -59,11 +59,19 @@ def mock_cache():
 
 
 @pytest.fixture
-def sample_acls():
+def mock_acls():
     """
     Fixture providing sample ACL data.
     """
     return [SectionACL(section_regex=".*", permissions=["*"])]
+
+
+@pytest.fixture
+def mock_auth_info(mock_acls):
+    """
+    Fixture providing sample AuthSuccess (with list of SectionACLs).
+    """
+    return AuthSuccess(name="test-user", acls=mock_acls)
 
 
 # Tests for process_api_key_header
@@ -80,15 +88,16 @@ async def test_process_api_key_header_empty_key(mock_settings, mock_cache):
 
 @pytest.mark.asyncio
 async def test_process_api_key_header_cached_success(
-    mock_settings, mock_cache, sample_acls
+    mock_settings, mock_cache, mock_acls
 ):
     """
     Test API key authentication with valid cached ACLs.
     """
-    mock_cache.fetch_app_cache.return_value = json.dumps(
-        [acl.model_dump() for acl in sample_acls]
-    )
+    auth_info = AuthSuccess(name="valid-key", acls=mock_acls)
+    mock_cache.fetch_app_cache.return_value = auth_info.model_dump_json()
+
     result = await process_api_key_header("valid-key", mock_settings, mock_cache)
+
     assert len(result) == 1
     assert result[0].permissions == ["*"]
 
@@ -160,14 +169,13 @@ async def test_process_bearer_token_invalid_format(mock_settings, mock_cache):
 
 @pytest.mark.asyncio
 async def test_process_bearer_token_cached_success(
-    mock_settings, mock_cache, sample_acls
+    mock_settings, mock_cache, mock_acls
 ):
     """
     Test bearer token authentication with valid cached ACLs.
     """
-    mock_cache.fetch_app_cache.return_value = json.dumps(
-        [acl.model_dump() for acl in sample_acls]
-    )
+    auth_info = AuthSuccess(name="valid.jwt.token", acls=mock_acls)
+    mock_cache.fetch_app_cache.return_value = auth_info.model_dump_json()
     result = await process_bearer_token("valid.jwt.token", mock_settings, mock_cache)
     assert len(result) == 1
     assert result[0].permissions == ["*"]
@@ -175,14 +183,15 @@ async def test_process_bearer_token_cached_success(
 
 @pytest.mark.asyncio
 async def test_process_bearer_token_cache_miss_success(
-    mock_settings, mock_cache, sample_acls
+    mock_settings, mock_cache, mock_auth_info
 ):
     """
     Test bearer token authentication with cache miss but successful auth.
     """
     mock_cache.fetch_app_cache.return_value = None
     with patch(
-        "app.core.v1.auth.authenticate_token", new=AsyncMock(return_value=sample_acls)
+        "app.core.v1.auth.authenticate_token",
+        new=AsyncMock(return_value=mock_auth_info),
     ):
         result = await process_bearer_token(
             "valid.jwt.token", mock_settings, mock_cache
