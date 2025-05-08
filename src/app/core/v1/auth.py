@@ -119,9 +119,9 @@ async def process_bearer_token(
         auth_info = AuthSuccess.model_validate_json(cached_auth_info)
         acls = [SectionACL.model_validate(item) for item in auth_info.acls]
         if mode == "authn":
-            logger.info(f"JWT auth for '{auth_info.name}' (cached)")
+            logger.info(f"JWT authentication for '{auth_info.name}' (cached)")
         elif mode == "authz":
-            logger.info(f"JWT auth for '{auth_info.name}' (cached)")
+            logger.info(f"JWT authorization for '{auth_info.name}' (cached)")
         return acls
 
     try:
@@ -131,9 +131,9 @@ async def process_bearer_token(
             serial_auth_info = json.dumps(to_jsonable_python(auth_info))
             cache.store_app_cache(auth_hash, serial_auth_info, 900)
             if mode == "authn":
-                logger.info(f"JWT auth for '{auth_info.name}'")
+                logger.info(f"JWT authentication for '{auth_info.name}'")
             elif mode == "authz":
-                logger.info(f"JWT auth for '{auth_info.name}'")
+                logger.info(f"JWT authorization for '{auth_info.name}'")
     except AuthenticationError as exc:
         raise HTTPException(status_code=403, detail=f"Invalid token: {exc}")
 
