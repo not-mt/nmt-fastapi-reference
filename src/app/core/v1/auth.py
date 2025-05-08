@@ -6,6 +6,7 @@
 
 import json
 import logging
+from typing import Literal
 
 from fastapi import HTTPException
 from nmtfast.auth.v1.acl import AuthSuccess
@@ -15,7 +16,7 @@ from nmtfast.auth.v1.hash import fingerprint_hash
 from nmtfast.auth.v1.jwt import authenticate_token
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
-from pydantic.json import pydantic_encoder
+from pydantic_core import to_jsonable_python
 
 from app.core.v1.settings import AppSettings
 
@@ -26,14 +27,19 @@ async def process_api_key_header(
     api_key: str,
     settings: AppSettings,
     cache: AppCacheBase,
+    mode: Literal["authn", "authz"],
 ) -> list[SectionACL]:
     """
     Authenticate using an API key.
+
+    ACLs are captured even for "authn" mode because it is quicker to cache them rather
+    than calling authenticate_api_key() twice.
 
     Args:
         api_key: The API key from the request header.
         settings: The application settings.
         cache: An implementation of AppCacheBase, which can cache API credentials.
+        mode: Determine whether to create an authentication or authorization log entry.
 
     Returns:
         list[SectionACL]: A list of ACLs associated with the API key.
@@ -48,19 +54,24 @@ async def process_api_key_header(
     auth_hash = fingerprint_hash(api_key.encode("utf-8"))
 
     if cached_auth_info := cache.fetch_app_cache(auth_hash):
-        # auth_info = json.loads(cached_auth_info)
         auth_info = AuthSuccess.model_validate_json(cached_auth_info)
         acls = [SectionACL.model_validate(acl) for acl in auth_info.acls]
-        logger.info(f"Successful (cached) API key auth for '{auth_info.name}'")
+        if mode == "authn":
+            logger.info(f"API key authentication for '{auth_info.name}' (cached)")
+        elif mode == "authz":
+            logger.info(f"API key authorization for '{auth_info.name}' (cached)")
         return acls
 
     try:
         if auth_info := await authenticate_api_key(api_key, settings.auth):
             # TODO: get TTL from config
             acls = auth_info.acls
-            serial_auth_info = json.dumps(auth_info, default=pydantic_encoder)
+            serial_auth_info = json.dumps(to_jsonable_python(auth_info))
             cache.store_app_cache(auth_hash, serial_auth_info, 900)
-            logger.info(f"Successful API key auth for '{auth_info.name}'")
+            if mode == "authn":
+                logger.info(f"API key authentication for '{auth_info.name}'")
+            elif mode == "authz":
+                logger.info(f"API key authorization for '{auth_info.name}'")
     except AuthenticationError as exc:
         raise HTTPException(status_code=403, detail=f"Invalid API key: {exc}")
 
@@ -71,14 +82,19 @@ async def process_bearer_token(
     token: str,
     settings: AppSettings,
     cache: AppCacheBase,
+    mode: Literal["authn", "authz"],
 ) -> list[SectionACL]:
     """
     Authenticate using a Bearer (JWT) token.
+
+    ACLs are captured even for "authn" mode because it is quicker to cache them rather
+    than calling authenticate_token() twice.
 
     Args:
         token: The OAuth2 token from the request header.
         settings: The application settings.
         cache: An implementation of AppCacheBase, which can cache API credentials.
+        mode: Determine whether to create an authentication or authorization log entry.
 
     Returns:
         list[SectionACL]: A list of ACLs associated with the API key.
@@ -102,16 +118,22 @@ async def process_bearer_token(
     if cached_auth_info := cache.fetch_app_cache(auth_hash):
         auth_info = AuthSuccess.model_validate_json(cached_auth_info)
         acls = [SectionACL.model_validate(item) for item in auth_info.acls]
-        logger.info(f"Successful (cached) JWT auth for '{auth_info.name}'")
+        if mode == "authn":
+            logger.info(f"JWT auth for '{auth_info.name}' (cached)")
+        elif mode == "authz":
+            logger.info(f"JWT auth for '{auth_info.name}' (cached)")
         return acls
 
     try:
         if auth_info := await authenticate_token(token, settings.auth):
             # TODO: get TTL from config
             acls = auth_info.acls
-            serial_auth_info = json.dumps(auth_info, default=pydantic_encoder)
+            serial_auth_info = json.dumps(to_jsonable_python(auth_info))
             cache.store_app_cache(auth_hash, serial_auth_info, 900)
-            logger.info(f"Successful JWT auth for '{auth_info.name}'")
+            if mode == "authn":
+                logger.info(f"JWT auth for '{auth_info.name}'")
+            elif mode == "authz":
+                logger.info(f"JWT auth for '{auth_info.name}'")
     except AuthenticationError as exc:
         raise HTTPException(status_code=403, detail=f"Invalid token: {exc}")
 
