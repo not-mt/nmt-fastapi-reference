@@ -8,6 +8,7 @@ import json
 import logging
 
 from fastapi import HTTPException
+from nmtfast.auth.v1.acl import AuthSuccess
 from nmtfast.auth.v1.api_keys import authenticate_api_key
 from nmtfast.auth.v1.exceptions import AuthenticationError
 from nmtfast.auth.v1.hash import fingerprint_hash
@@ -46,16 +47,20 @@ async def process_api_key_header(
     acls: list[SectionACL] = []
     auth_hash = fingerprint_hash(api_key.encode("utf-8"))
 
-    if cached_acls := cache.fetch_app_cache(auth_hash):
-        unserial_acls = json.loads(cached_acls)
-        acls = [SectionACL.model_validate(acl) for acl in unserial_acls]
+    if cached_auth_info := cache.fetch_app_cache(auth_hash):
+        # auth_info = json.loads(cached_auth_info)
+        auth_info = AuthSuccess.model_validate_json(cached_auth_info)
+        acls = [SectionACL.model_validate(acl) for acl in auth_info.acls]
+        logger.info(f"Successful (cached) API key auth for '{auth_info.name}'")
         return acls
 
     try:
-        if acls := await authenticate_api_key(api_key, settings.auth):
+        if auth_info := await authenticate_api_key(api_key, settings.auth):
             # TODO: get TTL from config
-            serial_acls = json.dumps(acls, default=pydantic_encoder)
-            cache.store_app_cache(auth_hash, serial_acls, 900)
+            acls = auth_info.acls
+            serial_auth_info = json.dumps(auth_info, default=pydantic_encoder)
+            cache.store_app_cache(auth_hash, serial_auth_info, 900)
+            logger.info(f"Successful API key auth for '{auth_info.name}'")
     except AuthenticationError as exc:
         raise HTTPException(status_code=403, detail=f"Invalid API key: {exc}")
 
@@ -94,16 +99,19 @@ async def process_bearer_token(
     acls: list[SectionACL] = []
     auth_hash = fingerprint_hash(token.encode("utf-8"))
 
-    if cached_acls := cache.fetch_app_cache(auth_hash):
-        unserial_acls = json.loads(cached_acls)
-        acls = [SectionACL.model_validate(item) for item in unserial_acls]
+    if cached_auth_info := cache.fetch_app_cache(auth_hash):
+        auth_info = AuthSuccess.model_validate_json(cached_auth_info)
+        acls = [SectionACL.model_validate(item) for item in auth_info.acls]
+        logger.info(f"Successful (cached) JWT auth for '{auth_info.name}'")
         return acls
 
     try:
-        if acls := await authenticate_token(token, settings.auth):
+        if auth_info := await authenticate_token(token, settings.auth):
             # TODO: get TTL from config
-            serial_acls = json.dumps(acls, default=pydantic_encoder)
-            cache.store_app_cache(auth_hash, serial_acls, 900)
+            acls = auth_info.acls
+            serial_auth_info = json.dumps(auth_info, default=pydantic_encoder)
+            cache.store_app_cache(auth_hash, serial_auth_info, 900)
+            logger.info(f"Successful JWT auth for '{auth_info.name}'")
     except AuthenticationError as exc:
         raise HTTPException(status_code=403, detail=f"Invalid token: {exc}")
 
