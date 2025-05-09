@@ -54,10 +54,10 @@ def mock_settings(mock_api_key: str) -> AppSettings:
         ),
         logging=LoggingSettings(
             level="DEBUG",
-            loggers=[
-                {"name": "test_logger_1", "level": "DEBUG"},
-                {"name": "test_logger_2", "level": "WARNING"},
-            ],
+            loggers={
+                "test_logger_1": {"level": "DEBUG"},
+                "test_logger_2": {"level": "WARNING"},
+            },
         ),
     )
     return app_settings

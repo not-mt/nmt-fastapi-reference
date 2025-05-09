@@ -126,7 +126,9 @@ auth:
 logging:
   level: DEBUG
   loggers:
-    - name: aiosqlite
+    "aiosqlite":
+      level: INFO
+    "some.other.module.*":
       level: INFO
 ```
 
