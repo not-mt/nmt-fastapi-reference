@@ -38,9 +38,9 @@ auth:
 logging:
   level: DEBUG
   loggers:
-    - name: aiosqlite
+    "aiosqlite":
       level: INFO
-    - name: pymongo
+    "pymongo":
       level: INFO
 tasks:
   name: nmt-fastapi-reference

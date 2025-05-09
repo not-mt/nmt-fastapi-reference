@@ -24,10 +24,10 @@ def test_app_settings_with_loggers() -> AppSettings:
     """
     logging_settings = LoggingSettings(
         level="DEBUG",
-        loggers=[
-            {"name": "test_logger_1", "level": "DEBUG"},
-            {"name": "test_logger_2", "level": "WARNING"},
-        ],
+        loggers={
+            "test_logger_1": {"level": "DEBUG"},
+            "test_logger_2": {"level": "WARNING"},
+        },
     )
     return AppSettings(logging=logging_settings)
 

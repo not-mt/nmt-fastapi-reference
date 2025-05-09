@@ -23,11 +23,13 @@ def test_logging_settings():
     settings = LoggingSettings(
         level="DEBUG",
         format="test_format",
-        loggers=[{"name": "test_logger", "level": "INFO"}],
+        loggers={
+            "test_logger": {"level": "INFO"},
+        },
     )
     assert settings.level == "DEBUG"
     assert settings.format == "test_format"
-    assert settings.loggers == [{"name": "test_logger", "level": "INFO"}]
+    assert settings.loggers == {"test_logger": {"level": "INFO"}}
 
 
 def test_app_settings():

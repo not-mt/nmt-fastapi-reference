@@ -25,9 +25,9 @@ def configure_logging(settings: AppSettings) -> None:
     """
     logging_config: dict = create_logging_config(settings.logging)
     logging.config.dictConfig(logging_config)
-    for logger in settings.logging.loggers:
+    for logger_name, logger in settings.logging.loggers.items():
         log_level: int = getattr(logging, logger["level"].upper())
-        logging.getLogger(logger["name"]).setLevel(log_level)
+        logging.getLogger(logger_name).setLevel(log_level)
 
 
 def discover_tasks(package: str = "app.tasks") -> None:
