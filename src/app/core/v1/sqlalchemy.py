@@ -4,7 +4,6 @@
 
 """SQLAlchemy engine and session setup."""
 
-import re
 from functools import wraps
 
 from sqlalchemy import create_engine
@@ -29,8 +28,13 @@ async_session = async_sessionmaker(
     bind=async_engine, class_=AsyncSession, expire_on_commit=False
 )
 
-# Convert async URL (e.g., "postgresql+asyncpg://") to sync (e.g., "postgresql://")
-sync_url = re.sub(r"\+[^:]+", "", settings.sqlalchemy.url)
+# Convert async URL to sync
+async_url = settings.sqlalchemy.url
+sync_url = (
+    async_url.replace("sqlite+aiosqlite://", "sqlite://")
+    .replace("mysql+aiomysql://", "mysql+pymysql://")
+    .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+)
 
 # NOTE: synchronous SQLAlchemy engine and session should ONLY BE USED for
 #   for background tasks that are scheduled and executed by Huey
