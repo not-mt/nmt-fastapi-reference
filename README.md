@@ -1,6 +1,6 @@
 # nmt-fastapi-reference
 
-A FastAPI-based microservice leveraging the `nmtfast` Python package for structured access control, logging, and <span style="color: red">TODO</span> caching.
+A FastAPI-based microservice leveraging the `nmtfast` Python package for structured access control, logging, and caching.
 
 ## Features
 
@@ -16,8 +16,8 @@ A FastAPI-based microservice leveraging the `nmtfast` Python package for structu
 ### Prerequisites
 
 - Python 3.12+
-- <span style="color: red">TODO:</span> PostgreSQL (or another supported database)
-- <span style="color: red">TODO:</span> Redis (if using rate-limiting or caching features)
+- PostgreSQL, MySQL, or MongoDB database
+- Redis
 
 ### Prepare Development Environment
 
@@ -110,6 +110,8 @@ Place the generated hash in the `nmtfast-config-local.yaml` config file; for exa
 version: 1
 sqlalchemy:
   url: sqlite+aiosqlite:///./development.sqlite
+  # url: mysql+aiomysql://user:passwd@dbhost:3306/nmtfastdev1?charset=utf8mb4
+  # url: postgresql+asyncpg://user:passwd@dbhost:5432/nmtfastdev1
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token
   id_providers: {}
@@ -122,7 +124,7 @@ auth:
       hash: '$argon2id$v=19$m=65536,t=3,p=4$tWmX...'
       acls:
         - section_regex: '^widgets$'
-          permissions: ['*', 'create']
+          permissions: ['*']
 logging:
   level: DEBUG
   loggers:
