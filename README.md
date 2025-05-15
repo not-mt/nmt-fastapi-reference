@@ -124,7 +124,8 @@ auth:
       hash: '$argon2id$v=19$m=65536,t=3,p=4$tWmX...'
       acls:
         - section_regex: '^widgets$'
-          permissions: ['*']
+          #permissions: ['*']
+          permissions: ['create', 'read']
 logging:
   level: DEBUG
   loggers:
@@ -151,6 +152,16 @@ cp samples/docker-compose.yaml .
 docker-compose build
 docker-compose up
 ```
+
+## Invoke Tasks
+
+Invoke is included with this project so that repetitive tasks such as pytest, mypy, etc. can be bundled into simple task names without requiring complex arguments each time. For example, this will check static type hints for the entire project:
+
+```bash
+poetry run invoke mypy
+```
+
+Run `poetry run invoke --complete` to see all available tasks.
 
 ## Testing
 
