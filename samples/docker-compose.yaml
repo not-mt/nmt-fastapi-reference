@@ -12,7 +12,7 @@ services:
       - ./nmtfast-config-local.yaml:/app/nmtfast-config-local.yaml
       - ./development.sqlite:/app/development.sqlite
     environment:
-      APP_CONFIG_FILES: nmtfast-config-local.yaml
+      APP_CONFIG_FILES: nmtfast-config-default.yaml,nmtfast-config-local.yaml
     #
     # Add any other necessary configurations
     #

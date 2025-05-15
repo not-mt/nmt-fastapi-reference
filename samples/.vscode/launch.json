@@ -26,7 +26,7 @@
       "cwd": "${workspaceFolder}",
       "env": {
         "PROCESS_SPAWN_TIMEOUT": "60",
-        "APP_CONFIG_FILES": "${workspaceFolder}/nmtfast-config-default.yaml,${workspaceFolder}/nmtfast-config-local.yaml",
+        "APP_CONFIG_FILES": "nmtfast-config-default.yaml,nmtfast-config-local.yaml",
       },
       "args": [
         "app.task_loader.huey_app",
@@ -45,7 +45,7 @@
       ],
       "cwd": "${workspaceFolder}",
       "env": {
-        "APP_CONFIG_FILES": "${workspaceFolder}/nmtfast-config-local.yaml",
+        "APP_CONFIG_FILES": "nmtfast-config-default.yaml,nmtfast-config-local.yaml",
       }
     },
     {
