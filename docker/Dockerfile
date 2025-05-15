@@ -98,6 +98,7 @@ RUN python3 -m venv /app/venv && \
 # copy entrypoint, nginx, and supervisor config
 # NOTE: /app is writable by the unprivileged user, but the source code
 #   should NOT be possible to edit once the container is running
+COPY nmtfast-config-default.yaml /app/nmtfast-config-default.yaml
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /entrypoint.sh
