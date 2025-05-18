@@ -8,8 +8,10 @@ import logging
 from typing import Any, Protocol
 from uuid import uuid4
 
+from nmtfast.retry.v1.tenacity import tenacity_retry_log
 from pymongo.asynchronous.collection import AsyncCollection as AsyncMongoCollection
 from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from app.schemas.v1.gadgets import GadgetCreate, GadgetRead
 
@@ -56,6 +58,12 @@ class GadgetRepository(GadgetRepositoryProtocol):
         self.db: AsyncMongoDatabase = db
         self.collection: AsyncMongoCollection = db["gadgets"]
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(0.2),
+        after=tenacity_retry_log(logger),
+    )
     async def gadget_create(self, gadget: GadgetCreate) -> GadgetRead:
         """
         Create a new gadget and persist it to the database.
@@ -74,6 +82,12 @@ class GadgetRepository(GadgetRepositoryProtocol):
 
         return GadgetRead(**new_gadget)
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(0.2),
+        after=tenacity_retry_log(logger),
+    )
     async def get_by_id(self, gadget_id: str) -> GadgetRead | None:
         """
         Retrieve a gadget by its ID from the database.
