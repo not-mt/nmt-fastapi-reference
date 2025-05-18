@@ -7,7 +7,9 @@
 import logging
 from typing import Protocol
 
+from nmtfast.retry.v1.tenacity import tenacity_retry_log
 from sqlalchemy.ext.asyncio import AsyncSession
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from app.models.v1.widgets import Widget
 from app.schemas.v1.widgets import WidgetCreate
@@ -54,6 +56,12 @@ class WidgetRepository(WidgetRepositoryProtocol):
     def __init__(self, db: AsyncSession) -> None:
         self.db: AsyncSession = db
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(0.2),
+        after=tenacity_retry_log(logger),
+    )
     async def widget_create(self, widget: WidgetCreate) -> Widget:
         """
         Create a new widget and persist it to the database.
@@ -72,6 +80,12 @@ class WidgetRepository(WidgetRepositoryProtocol):
 
         return db_widget
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(0.2),
+        after=tenacity_retry_log(logger),
+    )
     async def get_by_id(self, widget_id: int) -> Widget | None:
         """
         Retrieve a widget by its ID from the database.
