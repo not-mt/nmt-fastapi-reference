@@ -42,6 +42,12 @@ logging:
       level: INFO
     "pymongo":
       level: INFO
+    "pymongo.topology":
+      level: INFO
+    "pymongo.connection":
+      level: INFO
+    "pymongo.serverSelection":
+      level: INFO
 tasks:
   name: nmt-fastapi-reference
   backend: sqlite
