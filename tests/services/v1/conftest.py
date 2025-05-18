@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock
 
 import argon2
 import pytest
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from nmtfast.settings.v1.schemas import AuthApiKeySettings, SectionACL
+from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
 from app.core.v1.settings import AppSettings, AuthSettings, LoggingSettings
 
@@ -19,9 +19,9 @@ ph = argon2.PasswordHasher()
 @pytest.fixture
 def mock_mongo_db() -> AsyncMock:
     """
-    Fixture to provide a mock AsyncIOMotorDatabase.
+    Fixture to provide a mock AsyncMongoDatabase.
     """
-    return AsyncMock(spec=AsyncIOMotorDatabase)
+    return AsyncMock(spec=AsyncMongoDatabase)
 
 
 @pytest.fixture

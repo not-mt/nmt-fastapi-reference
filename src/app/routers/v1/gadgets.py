@@ -7,9 +7,9 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
+from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.auth import authenticate_headers, get_acls
@@ -35,7 +35,7 @@ gadgets_router = APIRouter(
 
 
 def get_gadget_service(
-    db: AsyncIOMotorDatabase = Depends(get_mongo_db),
+    db: AsyncMongoDatabase = Depends(get_mongo_db),
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
     cache: AppCacheBase = Depends(get_cache),
