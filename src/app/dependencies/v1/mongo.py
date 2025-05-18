@@ -5,7 +5,7 @@
 """Dependencies related to MongoDB."""
 
 from fastapi import Depends
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
 from app.core.v1.mongo import async_client
 from app.core.v1.settings import AppSettings, get_app_settings
@@ -13,7 +13,7 @@ from app.core.v1.settings import AppSettings, get_app_settings
 
 async def get_mongo_db(
     settings: AppSettings = Depends(get_app_settings),
-) -> AsyncIOMotorDatabase:
+) -> AsyncMongoDatabase:
     """
     Provide an async MongoDB database for FastAPI endpoints.
 
@@ -24,7 +24,7 @@ async def get_mongo_db(
         settings: The application settings.
 
     Returns:
-        AsyncIOMotorDatabase: An async MongoDB client.
+        AsyncMongoDatabase: An async MongoDB client.
 
     Raises:
         AssertionError: If MongoDB client is not initialized.

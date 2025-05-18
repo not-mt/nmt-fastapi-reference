@@ -26,7 +26,7 @@ def test_mongo_clients_initialization_with_url():
             return_value=test_app_settings,
         ),
         patch(
-            "motor.motor_asyncio.AsyncIOMotorClient",
+            "pymongo.AsyncMongoClient",
             return_value=mock_async_client,
         ),
         patch(
@@ -43,6 +43,7 @@ def test_mongo_clients_initialization_with_url():
 
         assert mongo_module.async_client is mock_async_client
         assert mongo_module.sync_client is mock_sync_client
+        assert mongo_module.sync_client is not None
         assert mongo_module.sync_client.address == ("localhost", 27017)
 
 

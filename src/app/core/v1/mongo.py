@@ -6,17 +6,16 @@
 
 from functools import wraps
 
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient, MongoClient
 
 from app.core.v1.settings import get_app_settings
 
 settings = get_app_settings()
-async_client: AsyncIOMotorClient | None = None
+async_client: AsyncMongoClient | None = None
 sync_client: MongoClient | None = None
 
 if settings.mongo.url:
-    async_client = AsyncIOMotorClient(settings.mongo.url)
+    async_client = AsyncMongoClient(settings.mongo.url)
     sync_client = MongoClient(settings.mongo.url)
 
 
@@ -28,6 +27,7 @@ def with_sync_mongo_db():
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            assert sync_client is not None, "sync_client is not initialized"
             kwargs["mongo_db"] = sync_client[settings.mongo.db]
             return func(*args, **kwargs)
 

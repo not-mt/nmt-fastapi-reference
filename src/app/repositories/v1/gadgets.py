@@ -8,7 +8,8 @@ import logging
 from typing import Any, Protocol
 from uuid import uuid4
 
-from motor.motor_asyncio import AsyncIOMotorCollection, AsyncIOMotorDatabase
+from pymongo.asynchronous.collection import AsyncCollection as AsyncMongoCollection
+from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
 from app.schemas.v1.gadgets import GadgetCreate, GadgetRead
 
@@ -51,9 +52,9 @@ class GadgetRepository(GadgetRepositoryProtocol):
         db: The asynchronous MongoDB database.
     """
 
-    def __init__(self, db: AsyncIOMotorDatabase) -> None:
-        self.db: AsyncIOMotorDatabase = db
-        self.collection: AsyncIOMotorCollection = db["gadgets"]
+    def __init__(self, db: AsyncMongoDatabase) -> None:
+        self.db: AsyncMongoDatabase = db
+        self.collection: AsyncMongoCollection = db["gadgets"]
 
     async def gadget_create(self, gadget: GadgetCreate) -> GadgetRead:
         """
