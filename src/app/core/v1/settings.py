@@ -25,8 +25,10 @@ class SqlAlchemySettings(BaseModel):
 
     url: str = "sqlite+aiosqlite:///./development.sqlite"
     ssl_mode: Literal["none", "default"] = "none"
+    echo: bool = False
     connect_args: dict = {}
     echo_pool: bool = False
+    max_overflow: int = 10
     pool_pre_ping: bool = True
     pool_size: int = 4
     pool_timeout: int = 30

@@ -31,8 +31,10 @@ connect_args = settings.sqlalchemy.connect_args
 # create an engine by default, and overwrite it with SSL if necessary
 async_engine = create_async_engine(
     settings.sqlalchemy.url,
+    echo=settings.sqlalchemy.echo,
     connect_args=connect_args,
     echo_pool=settings.sqlalchemy.echo_pool,
+    max_overflow=settings.sqlalchemy.max_overflow,
     pool_pre_ping=settings.sqlalchemy.pool_pre_ping,
     pool_size=settings.sqlalchemy.pool_size,
     pool_timeout=settings.sqlalchemy.pool_timeout,
@@ -47,8 +49,10 @@ if settings.sqlalchemy.ssl_mode == "default":
 
     async_engine = create_async_engine(
         url=settings.sqlalchemy.url,
+        echo=settings.sqlalchemy.echo,
         connect_args=connect_args,
         echo_pool=settings.sqlalchemy.echo_pool,
+        max_overflow=settings.sqlalchemy.max_overflow,
         pool_pre_ping=settings.sqlalchemy.pool_pre_ping,
         pool_size=settings.sqlalchemy.pool_size,
         pool_timeout=settings.sqlalchemy.pool_timeout,
@@ -71,8 +75,10 @@ sync_url = (
 #   background tasks that are scheduled and executed by Huey
 sync_engine = create_engine(
     url=sync_url,
+    echo=settings.sqlalchemy.echo,
     connect_args=connect_args,
     echo_pool=settings.sqlalchemy.echo_pool,
+    max_overflow=settings.sqlalchemy.max_overflow,
     pool_pre_ping=settings.sqlalchemy.pool_pre_ping,
     pool_size=settings.sqlalchemy.pool_size,
     pool_timeout=settings.sqlalchemy.pool_timeout,
