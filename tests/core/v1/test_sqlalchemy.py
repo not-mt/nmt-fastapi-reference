@@ -6,7 +6,32 @@
 
 from unittest.mock import MagicMock, patch
 
+from app.core.v1.settings import AppSettings, SqlAlchemySettings
 from app.core.v1.sqlalchemy import with_sync_session
+
+
+def test_with_ssl_mode_default_context():
+    """
+    Test creating an async_engine with ssl_mode="default"
+    """
+    test_url = "mysql+aiomysql://user:pass@host:3306"
+    test_app_settings = AppSettings(
+        sqlalchemy=SqlAlchemySettings(url=test_url, ssl_mode="default")
+    )
+
+    with patch(
+        "app.core.v1.settings.get_app_settings",
+        return_value=test_app_settings,
+    ):
+        # NOTE: reload module to re-execute initialization
+        import importlib
+        import ssl
+
+        import app.core.v1.sqlalchemy as sqlalchemy_module
+
+        importlib.reload(sqlalchemy_module)
+
+        assert isinstance(sqlalchemy_module.ssl_context, ssl.SSLContext)
 
 
 def test_with_sync_session_injects_db_session():
