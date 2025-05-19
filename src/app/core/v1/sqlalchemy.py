@@ -4,6 +4,7 @@
 
 """SQLAlchemy engine and session setup."""
 
+import ssl
 from functools import wraps
 
 from sqlalchemy import create_engine
@@ -23,7 +24,37 @@ Base = declarative_base()  # needed for Alembic migrations
 
 # NOTE: asynchronous SQLAlchemy engine and session should be used with
 #   dependency injection for normal API calls
-async_engine = create_async_engine(settings.sqlalchemy.url)
+
+# default connection arguments; we can modify depending on config settings
+connect_args = settings.sqlalchemy.connect_args
+
+# create an engine by default, and overwrite it with SSL if necessary
+async_engine = create_async_engine(
+    settings.sqlalchemy.url,
+    connect_args=connect_args,
+    echo_pool=settings.sqlalchemy.echo_pool,
+    pool_pre_ping=settings.sqlalchemy.pool_pre_ping,
+    pool_size=settings.sqlalchemy.pool_size,
+    pool_timeout=settings.sqlalchemy.pool_timeout,
+    pool_recycle=settings.sqlalchemy.pool_recycle,
+)
+
+if settings.sqlalchemy.ssl_mode == "default":
+    # NOTE: asyncpg and aiomysql require using an actual SSLContext, and
+    #   not strings...
+    ssl_context = ssl.create_default_context()
+    connect_args["ssl"] = ssl_context
+
+    async_engine = create_async_engine(
+        url=settings.sqlalchemy.url,
+        connect_args=connect_args,
+        echo_pool=settings.sqlalchemy.echo_pool,
+        pool_pre_ping=settings.sqlalchemy.pool_pre_ping,
+        pool_size=settings.sqlalchemy.pool_size,
+        pool_timeout=settings.sqlalchemy.pool_timeout,
+        pool_recycle=settings.sqlalchemy.pool_recycle,
+    )
+
 async_session = async_sessionmaker(
     bind=async_engine, class_=AsyncSession, expire_on_commit=False
 )
@@ -37,8 +68,16 @@ sync_url = (
 )
 
 # NOTE: synchronous SQLAlchemy engine and session should ONLY BE USED for
-#   for background tasks that are scheduled and executed by Huey
-sync_engine = create_engine(sync_url)
+#   background tasks that are scheduled and executed by Huey
+sync_engine = create_engine(
+    url=sync_url,
+    connect_args=connect_args,
+    echo_pool=settings.sqlalchemy.echo_pool,
+    pool_pre_ping=settings.sqlalchemy.pool_pre_ping,
+    pool_size=settings.sqlalchemy.pool_size,
+    pool_timeout=settings.sqlalchemy.pool_timeout,
+    pool_recycle=settings.sqlalchemy.pool_recycle,
+)
 sync_session = sessionmaker(bind=sync_engine)
 
 
