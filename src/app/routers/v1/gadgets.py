@@ -58,8 +58,9 @@ def get_gadget_service(
 
 
 @gadgets_router.post(
-    "/",
+    path="",
     response_model=GadgetRead,
+    status_code=status.HTTP_201_CREATED,
     summary="Create a gadget",
     description="Create a gadget",  # Override the docstring in Swagger UI
 )
@@ -84,6 +85,7 @@ async def gadget_create(
 @gadgets_router.get(
     "/{gadget_id}",
     response_model=GadgetRead,
+    status_code=status.HTTP_200_OK,
     summary="View (read) a gadget",
     description="View (read) a gadget",  # Override the docstring in Swagger UI
 )
@@ -149,6 +151,7 @@ async def gadget_zap(
 @gadgets_router.get(
     "/{gadget_id}/zap/{task_uuid}/status",
     response_model=GadgetZapTask,
+    status_code=status.HTTP_200_OK,
     summary="View async task status",
     description="View async task status",  # Override the docstring in Swagger UI
 )

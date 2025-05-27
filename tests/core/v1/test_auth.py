@@ -11,7 +11,12 @@ import pytest
 from fastapi import HTTPException
 from nmtfast.auth.v1.acl import AuthSuccess
 from nmtfast.auth.v1.exceptions import AuthenticationError
-from nmtfast.settings.v1.schemas import AuthApiKeySettings, AuthSettings, SectionACL
+from nmtfast.settings.v1.schemas import (
+    AuthSettings,
+    IncomingAuthApiKey,
+    IncomingAuthSettings,
+    SectionACL,
+)
 
 from app.core.v1.auth import process_api_key_header, process_bearer_token
 from app.core.v1.settings import AppSettings
@@ -36,16 +41,18 @@ def mock_settings(mock_api_key):
         auth=AuthSettings(
             swagger_token_url="http://localhost/token",
             id_providers={},
-            clients={},
-            api_keys={
-                "valid-key": AuthApiKeySettings(
-                    contact="test@example.com",
-                    memo="pytest fixture",
-                    hash=ph.hash(mock_api_key),
-                    algo="argon2",
-                    acls=[SectionACL(section_regex=".*", permissions=["*"])],
-                )
-            },
+            incoming=IncomingAuthSettings(
+                clients={},
+                api_keys={
+                    "valid-key": IncomingAuthApiKey(
+                        contact="test@example.com",
+                        memo="pytest fixture",
+                        hash=ph.hash(mock_api_key),
+                        algo="argon2",
+                        acls=[SectionACL(section_regex=".*", permissions=["*"])],
+                    )
+                },
+            ),
         ),
     )
 
