@@ -11,7 +11,7 @@ import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from huey import RedisExpireHuey, SqliteHuey
-from nmtfast.settings.v1.schemas import Tasks
+from nmtfast.settings.v1.schemas import TaskSettings
 
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base
@@ -22,7 +22,9 @@ def test_task_settings_redis_backend() -> None:
     """Test using a Huey app with Redis backend."""
 
     test_app_settings = AppSettings(
-        tasks=Tasks(name="demo-tasks", backend="redis", url="redis://localhost:6379"),
+        tasks=TaskSettings(
+            name="demo-tasks", backend="redis", url="redis://localhost:6379"
+        ),
     )
 
     with patch("app.core.v1.settings.get_app_settings", return_value=test_app_settings):
@@ -41,7 +43,7 @@ def test_task_settings_sqlite_backend() -> None:
     """Test using a Huey app with sqlite backend."""
 
     test_app_settings = AppSettings(
-        tasks=Tasks(name="demo-tasks", backend="sqlite"),
+        tasks=TaskSettings(name="demo-tasks", backend="sqlite"),
     )
 
     with patch("app.core.v1.settings.get_app_settings", return_value=test_app_settings):
@@ -81,9 +83,11 @@ async def test_lifespan() -> None:
     """Test the lifespan function for database schema creation."""
 
     test_app = FastAPI(lifespan=lifespan)
-    with patch.object(Base.metadata, "create_all") as mock_create_all:
-        async with LifespanManager(test_app):  # Use LifespanManager
+    with (
+        patch.object(Base.metadata, "create_all") as mock_create_all,
+        patch("app.core.v1.discovery.required_clients", new=[]),
+    ):
+        async with LifespanManager(test_app):
             pass
 
-        # Assert Base.metadata.create_all was called
         mock_create_all.assert_called_once()

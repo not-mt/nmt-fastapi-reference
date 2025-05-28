@@ -10,8 +10,10 @@ It ensures consistent error responses for widget-related exceptions
 and common server-side errors.
 """
 
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from nmtfast.errors.v1.exceptions import UpstreamApiException
 
 
 def not_found_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -62,4 +64,30 @@ def index_out_of_range_error_handler(request: Request, exc: Exception) -> JSONRe
     return JSONResponse(
         status_code=400,
         content={"message": "Index out of range"},
+    )
+
+
+def upstream_api_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handle UpstreamApiException exceptions.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The raised exception.
+
+    Raises:
+        AssertionError: Raised if passed exception not UpstreamApiException.
+
+    Returns:
+        JSONResponse: A response with details about an upstream API failure.
+    """
+    assert isinstance(exc, UpstreamApiException), "Wrong exception type"
+    return JSONResponse(
+        status_code=exc.caller_status_code,
+        content={
+            "error": "upstream_api_failure",
+            "status_code": exc.status_code,
+            "message": exc.message,
+            "request_id": exc.req_id,
+        },
     )

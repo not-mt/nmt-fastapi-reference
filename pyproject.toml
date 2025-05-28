@@ -1,6 +1,6 @@
 [project]
 name = "app"
-version = "0.3.1"
+version = "0.4.0"
 description = "A sample FastAPI reference design"
 authors = [
     {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"}
@@ -29,6 +29,8 @@ dependencies = [
     "psycopg2-binary (>=2.9.10,<3.0.0)",
     "aiomysql (>=0.2.0,<0.3.0)",
     "pymysql (>=1.1.1,<2.0.0)",
+    "httpx (>=0.28.1,<0.29.0)",
+    "authlib (>=1.6.0,<2.0.0)",
 ]
 packages = [
     { include = "app", from = "src" }

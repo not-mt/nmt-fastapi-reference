@@ -12,19 +12,23 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from nmtfast.errors.v1.exceptions import UpstreamApiException
 from nmtfast.logging.v1.config import create_logging_config
 from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
 from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 
+from app.core.v1.discovery import create_api_clients
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
     index_out_of_range_error_handler,
     not_found_error_handler,
     server_error_handler,
+    upstream_api_exception_handler,
 )
 from app.errors.v1.exceptions import NotFoundError
 from app.routers.v1.gadgets import gadgets_router
+from app.routers.v1.upstream import widgets_api_router
 from app.routers.v1.widgets import widgets_router
 
 
@@ -44,6 +48,7 @@ def register_routers() -> None:
     Registers all API routers.
     """
     app.include_router(widgets_router)
+    app.include_router(widgets_api_router)
     app.include_router(gadgets_router)
 
 
@@ -56,6 +61,10 @@ def register_exception_handlers() -> None:
     app.add_exception_handler(status.HTTP_404_NOT_FOUND, not_found_error_handler)
     app.add_exception_handler(
         status.HTTP_500_INTERNAL_SERVER_ERROR, server_error_handler
+    )
+    app.add_exception_handler(
+        UpstreamApiException,
+        upstream_api_exception_handler,
     )
 
 
@@ -71,6 +80,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     logger: logging.Logger = logging.getLogger(__name__)
     logger.info("Lifespan started")
+
+    logger.info("Initializing API Clients (if any)...")
+    await create_api_clients()
 
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

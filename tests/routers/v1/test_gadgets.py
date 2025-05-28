@@ -123,7 +123,7 @@ async def test_gadget_create_endpoint_success(
         headers={"X-API-Key": mock_api_key},
         json={"name": "Test Gadget"},
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json() == mock_gadget_read.model_dump()
 
     # Reset the dependency override

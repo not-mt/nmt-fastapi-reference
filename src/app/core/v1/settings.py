@@ -11,8 +11,11 @@ from nmtfast.settings.v1.config_files import get_config_files, load_config
 from nmtfast.settings.v1.schemas import (
     AuthSettings,
     CacheSettings,
+    IncomingAuthSettings,
     LoggingSettings,
-    Tasks,
+    OutgoingAuthSettings,
+    ServiceDiscoverySettings,
+    TaskSettings,
 )
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,6 +48,22 @@ class MongoSettings(BaseModel):
     db: str = "nmt-fastapi-reference"
 
 
+class CustomDiscoverySettings(ServiceDiscoverySettings):
+    """
+    Application-specific configuration for service discovery.
+
+    This is a subclass of ServiceDiscoverySettings, and adds a "custom" field which
+    serves as an example of how to integrate custom service/security settings while
+    still using models from the nmtfast library.
+
+    Attributes:
+        custom: An example of custom fields that can be modeled by individual
+            applications / microservices.
+    """
+
+    custom: dict[str, dict] = {}
+
+
 class AppSettings(BaseSettings):
     """Application settings model."""
 
@@ -55,11 +74,22 @@ class AppSettings(BaseSettings):
     auth: AuthSettings = AuthSettings(
         swagger_token_url="https://some.domain.tld/token",
         id_providers={},
-        clients={},
-        api_keys={},
+        incoming=IncomingAuthSettings(
+            clients={},
+            api_keys={},
+        ),
+        outgoing=OutgoingAuthSettings(
+            clients={},
+            headers={},
+        ),
+    )
+    discovery: CustomDiscoverySettings = CustomDiscoverySettings(
+        mode="manual",
+        services={},
+        custom={},
     )
     logging: LoggingSettings = LoggingSettings()
-    tasks: Tasks = Tasks(
+    tasks: TaskSettings = TaskSettings(
         name="FIXME",
         backend="sqlite",
         url="redis://:FIXME_password@FIXME_host:6379/FIXME_db_number",

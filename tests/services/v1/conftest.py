@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 
 import argon2
 import pytest
-from nmtfast.settings.v1.schemas import AuthApiKeySettings, SectionACL
+from nmtfast.settings.v1.schemas import IncomingAuthApiKey, SectionACL
 from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
 from app.core.v1.settings import AppSettings, AuthSettings, LoggingSettings
@@ -43,7 +43,7 @@ def mock_settings(mock_api_key: str) -> AppSettings:
             id_providers={},
             clients={},
             api_keys={
-                "key1": AuthApiKeySettings(
+                "key1": IncomingAuthApiKey(
                     contact="some.user@domain.tld",
                     memo="pytest fixture",
                     hash=ph.hash(mock_api_key),

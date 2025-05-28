@@ -241,7 +241,7 @@ async def test_widget_zap_not_found(
     with pytest.raises(NotFoundError):
         await service.widget_zap(
             widget_id=123,
-            payload={"duration": 1},
+            payload=WidgetZap(duration=1),
         )
 
     # raising the exception is all that needs to be tested

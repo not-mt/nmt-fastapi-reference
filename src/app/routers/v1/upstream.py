@@ -2,74 +2,80 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""This module defines API endpoints for managing widgets."""
+"""This module defines API endpoints for managing widgets via upsteam API."""
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from nmtfast.cache.v1.base import AppCacheBase
-from nmtfast.settings.v1.schemas import SectionACL
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.v1.settings import AppSettings
-from app.dependencies.v1.auth import authenticate_headers, get_acls
-from app.dependencies.v1.cache import get_cache
-from app.dependencies.v1.settings import get_settings
-from app.dependencies.v1.sqlalchemy import get_sql_db
-from app.errors.v1.exceptions import NotFoundError
-from app.repositories.v1.widgets import WidgetRepository
-from app.schemas.v1.widgets import (
+from nmtfast.repositories.widgets.v1.api import WidgetApiRepository
+from nmtfast.repositories.widgets.v1.schemas import (
     WidgetCreate,
     WidgetRead,
     WidgetZap,
     WidgetZapTask,
 )
-from app.services.v1.widgets import WidgetService
+from nmtfast.settings.v1.schemas import SectionACL
+
+from app.core.v1.settings import AppSettings
+from app.dependencies.v1.auth import authenticate_headers, get_acls
+from app.dependencies.v1.cache import get_cache
+from app.dependencies.v1.discovery import get_api_clients
+from app.dependencies.v1.settings import get_settings
+from app.services.v1.upstream import WidgetApiService
 
 logger = logging.getLogger(__name__)
-widgets_router = APIRouter(
-    prefix="/v1/widgets",
-    tags=["Widget Operations (SQLAlchemy)"],
+widgets_api_router = APIRouter(
+    prefix="/v1/upstream",
+    tags=["Widget Operations (Upstream API)"],
     dependencies=[Depends(authenticate_headers)],
 )
 
 
 def get_widget_service(
-    db: AsyncSession = Depends(get_sql_db),
+    api_clients: dict = Depends(get_api_clients),
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
     cache: AppCacheBase = Depends(get_cache),
-) -> WidgetService:
+) -> WidgetApiService:
     """
-    Dependency function to provide a WidgetService instance.
+    Dependency function to provide a WidgetApiService instance.
 
     Args:
-        db: The asynchronous database session.
+        api_clients: Service-to-service and upstream API clients.
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
         cache: An implementation of AppCacheBase, used for getting/setting cache data.
 
     Returns:
-        WidgetService: An instance of the widget service.
+        WidgetApiService: An instance of the widget service.
     """
-    widget_repository = WidgetRepository(db)
+    widget_api_repository = WidgetApiRepository(api_clients["widgets"])
 
-    return WidgetService(widget_repository, acls, settings, cache)
+    return WidgetApiService(
+        widget_api_repository,
+        acls,
+        settings,
+        cache,
+    )
 
 
-@widgets_router.post(
+@widgets_api_router.post(
     path="",
     response_model=WidgetRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Create a widget",
-    description="Create a widget",  # Override the docstring in Swagger UI
+    summary="Create an API widget",
+    description="Create an API widget",  # Override the docstring in Swagger UI
 )
-async def widget_create(
+async def widget_api_create(
     widget: WidgetCreate,
-    widget_service: WidgetService = Depends(get_widget_service),
+    widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetRead:
     """
     Create a new widget.
+
+    Upstream API exceptions (UpstreamApiException) should be caught by exception
+    handlers that are registered during app startup.
 
     Args:
         widget: The widget data provided in the request.
@@ -82,19 +88,22 @@ async def widget_create(
     return await widget_service.widget_create(widget)
 
 
-@widgets_router.get(
+@widgets_api_router.get(
     "/{widget_id}",
     response_model=WidgetRead,
     status_code=status.HTTP_200_OK,
-    summary="View (read) a widget",
-    description="View (read) a widget",  # Override the docstring in Swagger UI
+    summary="View (read) an API widget",
+    description="View (read) an API widget",  # Override the docstring in Swagger UI
 )
-async def widget_get_by_id(
+async def widget_api_get_by_id(
     widget_id: int,
-    widget_service: WidgetService = Depends(get_widget_service),
+    widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetRead:
     """
     Retrieve a widget by its ID.
+
+    Upstream API exceptions (UpstreamApiException) should be caught by exception
+    handlers that are registered during app startup.
 
     Args:
         widget_id: The ID of the widget to retrieve.
@@ -102,66 +111,59 @@ async def widget_get_by_id(
 
     Returns:
         WidgetRead: The retrieved widget data.
-
-    Raises:
-        HTTPException: If the resource does not exist.
     """
-    try:
-        widget = await widget_service.widget_get_by_id(widget_id)
-    except NotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
-
-    return widget
+    return await widget_service.widget_get_by_id(widget_id)
 
 
-@widgets_router.post(
+@widgets_api_router.post(
     "/{widget_id}/zap",
     response_model=WidgetZapTask,
     # TODO: add custom response which includes Location header!
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Zap a widget",
-    description="Zap a widget",  # Override the docstring in Swagger UI
+    summary="Zap an API widget",
+    description="Zap an API widget",  # Override the docstring in Swagger UI
 )
-async def widget_zap(
+async def widget_api_zap(
     widget_id: int,
     payload: WidgetZap,
-    widget_service: WidgetService = Depends(get_widget_service),
+    widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetZapTask:
     """
     Zaps an existing widget.
+
+    Upstream API exceptions (UpstreamApiException) should be caught by exception
+    handlers that are registered during app startup.
 
     Args:
         widget_id: The ID of the widget to zap.
         payload: The widget task parameters.
         widget_service: The widget service instance.
 
-    Raises:
-        HTTPException: If the resource does not exist.
-
     Returns:
         WidgetZapTask: Information about the new task that was created.
     """
     logger.info(f"Attempting to zap widget {widget_id}: {payload}")
-    try:
-        return await widget_service.widget_zap(widget_id, payload)
-    except NotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
+
+    return await widget_service.widget_zap(widget_id, payload)
 
 
-@widgets_router.get(
+@widgets_api_router.get(
     "/{widget_id}/zap/{task_uuid}/status",
     response_model=WidgetZapTask,
     status_code=status.HTTP_200_OK,
-    summary="View async task status",
-    description="View async task status",  # Override the docstring in Swagger UI
+    summary="View async API task status",
+    description="View async API task status",  # Override the docstring in Swagger UI
 )
-async def widget_zap_get_task(
+async def widget_api_zap_get_task(
     widget_id: int,
     task_uuid: str,
-    widget_service: WidgetService = Depends(get_widget_service),
+    widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetZapTask:
     """
     Retrieve a zap widget task by its UUID.
+
+    Upstream API exceptions (UpstreamApiException) should be caught by exception
+    handlers that are registered during app startup.
 
     Args:
         widget_id: The ID of the widget to retrieve.
@@ -170,16 +172,5 @@ async def widget_zap_get_task(
 
     Returns:
         WidgetZapTask: The retrieved widget task data.
-
-    Raises:
-        HTTPException: If the resource does not exist.
     """
-    try:
-        task_md = await widget_service.widget_zap_by_uuid(
-            widget_id,
-            task_uuid,
-        )
-    except NotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
-
-    return task_md
+    return await widget_service.widget_zap_by_uuid(widget_id, task_uuid)
