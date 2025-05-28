@@ -115,17 +115,18 @@ sqlalchemy:
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token
   id_providers: {}
-  clients: {}
-  api_keys:
-    some_key:
-      contact: some.user@domain.tld
-      memo: This is just some API key
-      algo: argon2
-      hash: '$argon2id$v=19$m=65536,t=3,p=4$tWmX...'
-      acls:
-        - section_regex: '^widgets$'
-          #permissions: ['*']
-          permissions: ['create', 'read']
+  incoming:
+    clients: {}
+    api_keys:
+      some_key:
+        contact: some.user@domain.tld
+        memo: This is just some API key
+        algo: argon2
+        hash: '$argon2id$v=19$m=65536,t=3,p=4$tWmX...'
+        acls:
+          - section_regex: '^widgets$'
+            #permissions: ['*']
+            permissions: ['create', 'read']
 logging:
   level: DEBUG
   loggers:
