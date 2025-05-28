@@ -36,7 +36,7 @@ async def create_api_clients():
             logger.critical(f"API client failure for {client_name} service: {exc}")
             for service, client in api_clients.items():
                 logger.warning(f"Attempting to close {service} API client...")
-                client.aclose()
+                await client.aclose()
             raise
 
     logger.info(f"Created {len(api_clients.keys())} API client(s)")
