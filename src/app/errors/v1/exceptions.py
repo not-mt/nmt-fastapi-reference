@@ -2,12 +2,12 @@
 # Copyright (c) 2025. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root for details.
 
-"""API-specific exceptions for widget resources."""
+"""API-specific exceptions for resources."""
 
 
-class NotFoundError(Exception):
+class ResourceNotFoundError(Exception):
     """
-    Initializes the NotFoundError with the resource details.
+    Initializes the RepoResourceNotFoundError with the resource details.
 
     Args:
         resource_id: The ID of the resource.

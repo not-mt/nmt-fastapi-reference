@@ -18,15 +18,15 @@ from nmtfast.tasks.v1.huey import (
 
 from app.core.v1.settings import AppSettings
 from app.core.v1.tasks import huey_app
-from app.errors.v1.exceptions import NotFoundError
-from app.repositories.v1.widgets import WidgetRepositoryProtocol
+from app.errors.v1.exceptions import ResourceNotFoundError
+from app.repositories.v1.widgets import WidgetRepository
 from app.schemas.v1.widgets import (
     WidgetCreate,
     WidgetRead,
     WidgetZap,
     WidgetZapTask,
 )
-from app.tasks.v1.widgets import widget_zap_task
+from app.tasks.v1.widgets import WidgetZapParams, widget_zap_task
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +44,12 @@ class WidgetService:
 
     def __init__(
         self,
-        widget_repository: WidgetRepositoryProtocol,
+        widget_repository: WidgetRepository,
         acls: list,
         settings: AppSettings,
         cache: AppCacheBase,
     ) -> None:
-        self.widget_repository: WidgetRepositoryProtocol = widget_repository
+        self.widget_repository: WidgetRepository = widget_repository
         self.acls = acls
         self.settings = settings
         self.cache = cache
@@ -90,17 +90,11 @@ class WidgetService:
         Args:
             widget_id: The ID of the widget to retrieve.
 
-        Raises:
-            NotFoundError: If the widget is not found.
-
         Returns:
             WidgetRead: The retrieved widget.
         """
         await self._is_authz(self.acls, "read")
         db_widget = await self.widget_repository.get_by_id(widget_id)
-
-        if not db_widget:
-            raise NotFoundError(widget_id, "Widget")
 
         return WidgetRead.model_validate(db_widget)
 
@@ -112,23 +106,21 @@ class WidgetService:
             widget_id: The ID of the widget to zap.
             payload: Parameters for the async task.
 
-        Raises:
-            NotFoundError: If the widget is not found.
-
         Returns:
             WidgetZapTask: Information about the newly created task.
         """
         await self._is_authz(self.acls, "zap")
 
         db_widget = await self.widget_repository.get_by_id(widget_id)
-        if not db_widget:
-            raise NotFoundError(widget_id, "Widget")
+        logger.debug(f"Preparing to zap widget ID {db_widget.id}")
 
         # start the async task and report the uuid
         result = widget_zap_task(
-            REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
-            widget_id,
-            duration=payload.duration,
+            WidgetZapParams(
+                request_id=REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
+                widget_id=widget_id,
+                duration=payload.duration,
+            )
         )
         task_uuid = "PENDING"
         # if hasattr(result, "task"):
@@ -158,17 +150,16 @@ class WidgetService:
             widget_id: The ID of the widget.
             task_uuid: The UUID of the async task.
 
-        Raises:
-            NotFoundError: If the widget is not found.
-
         Returns:
             WidgetZapTask: The retrieved widget.
+
+        Raises:
+            ResourceNotFoundError: Raised if the task UUID cannot be found.
         """
         await self._is_authz(self.acls, "read")
 
         db_widget = await self.widget_repository.get_by_id(widget_id)
-        if not db_widget:
-            raise NotFoundError(widget_id, "Widget")
+        logger.debug(f"Fetching zap status for widget ID {db_widget.id}")
 
         # NOTE: missing result might mean the task is still running
         task_result = fetch_task_result(huey_app, task_uuid)
@@ -179,6 +170,6 @@ class WidgetService:
         task_md = fetch_task_metadata(huey_app, task_uuid)
         if not task_result and not task_md:
             logger.debug(f"Task metadata not found for {task_uuid}")
-            raise NotFoundError(task_uuid, "Task")
+            raise ResourceNotFoundError(task_uuid, "Task")
 
         return WidgetZapTask.model_validate(task_md)

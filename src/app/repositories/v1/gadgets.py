@@ -5,7 +5,7 @@
 """Repository layer for Gadget resources."""
 
 import logging
-from typing import Any, Protocol
+from typing import Any
 from uuid import uuid4
 
 from nmtfast.retry.v1.tenacity import tenacity_retry_log
@@ -18,35 +18,7 @@ from app.schemas.v1.gadgets import GadgetCreate, GadgetRead
 logger = logging.getLogger(__name__)
 
 
-class GadgetRepositoryProtocol(Protocol):
-    """Async Protocol defining gadget repository operations."""
-
-    async def gadget_create(self, gadget: GadgetCreate) -> GadgetRead:
-        """
-        Create a new gadget entry in the database.
-
-        Args:
-            gadget: The gadget schema instance.
-
-        Returns:
-            GadgetRead: The created gadget instance.
-        """
-        ...  # pragma: no cover
-
-    async def get_by_id(self, gadget_id: str) -> GadgetRead | None:
-        """
-        Create a new gadget entry in the database.
-
-        Args:
-            gadget_id: The ID number of the gadget.
-
-        Returns:
-            GadgetRead | None: The created gadget instance.
-        """
-        ...  # pragma: no cover
-
-
-class GadgetRepository(GadgetRepositoryProtocol):
+class GadgetRepository:
     """
     Repository implementation for Gadget operations.
 

@@ -13,7 +13,7 @@ from nmtfast.settings.v1.schemas import SectionACL
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.mongo import get_mongo_db
-from app.errors.v1.exceptions import NotFoundError
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.main import app
 from app.repositories.v1.gadgets import GadgetRepository
 from app.routers.v1.gadgets import authenticate_headers, get_gadget_service
@@ -200,7 +200,7 @@ async def test_gadget_get_by_id_endpoint_not_found(
     app.dependency_overrides[get_gadget_service] = override_get_gadget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_gadget_service.gadget_get_by_id = AsyncMock(
-        side_effect=NotFoundError(resource_id=123, resource_name="Gadget"),
+        side_effect=ResourceNotFoundError(resource_id=123, resource_name="Gadget"),
     )
 
     response = client.get(
@@ -265,7 +265,7 @@ async def test_gadget_zap_endpoint_not_found(
     app.dependency_overrides[get_gadget_service] = override_get_gadget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_gadget_service.gadget_zap = AsyncMock(
-        side_effect=NotFoundError(resource_id=123, resource_name="Gadget"),
+        side_effect=ResourceNotFoundError(resource_id=123, resource_name="Gadget"),
     )
 
     response = client.post(
@@ -340,7 +340,7 @@ async def test_gadget_zap_endpoint_status_not_found(
     app.dependency_overrides[get_gadget_service] = override_get_gadget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_gadget_service.gadget_zap_by_uuid = AsyncMock(
-        side_effect=NotFoundError(resource_id=123, resource_name="Gadget"),
+        side_effect=ResourceNotFoundError(resource_id=123, resource_name="Gadget"),
     )
 
     response = client.get(

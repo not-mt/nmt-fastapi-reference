@@ -16,7 +16,7 @@ from app.dependencies.v1.auth import authenticate_headers, get_acls
 from app.dependencies.v1.cache import get_cache
 from app.dependencies.v1.mongo import get_mongo_db
 from app.dependencies.v1.settings import get_settings
-from app.errors.v1.exceptions import NotFoundError
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.repositories.v1.gadgets import GadgetRepository
 from app.schemas.v1.gadgets import (
     GadgetCreate,
@@ -108,7 +108,7 @@ async def gadget_get_by_id(
     """
     try:
         gadget = await gadget_service.gadget_get_by_id(gadget_id)
-    except NotFoundError as exc:
+    except ResourceNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
 
     return gadget
@@ -144,7 +144,7 @@ async def gadget_zap(
     logger.info(f"Attempting to zap gadget {gadget_id}: {payload}")
     try:
         return await gadget_service.gadget_zap(gadget_id, payload)
-    except NotFoundError as exc:
+    except ResourceNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
 
 
@@ -179,7 +179,7 @@ async def gadget_zap_get_task(
             gadget_id,
             task_uuid,
         )
-    except NotFoundError as exc:
+    except ResourceNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
 
     return task_md

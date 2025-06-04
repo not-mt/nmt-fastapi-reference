@@ -5,47 +5,19 @@
 """Repository layer for Widget resources."""
 
 import logging
-from typing import Protocol
 
 from nmtfast.retry.v1.tenacity import tenacity_retry_log
 from sqlalchemy.ext.asyncio import AsyncSession
 from tenacity import retry, stop_after_attempt, wait_fixed
 
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.models.v1.widgets import Widget
 from app.schemas.v1.widgets import WidgetCreate
 
 logger = logging.getLogger(__name__)
 
 
-class WidgetRepositoryProtocol(Protocol):
-    """Async Protocol defining widget repository operations."""
-
-    async def widget_create(self, widget: WidgetCreate) -> Widget:
-        """
-        Create a new widget entry in the database.
-
-        Args:
-            widget: The widget schema instance.
-
-        Returns:
-            Widget: The created widget instance.
-        """
-        ...  # pragma: no cover
-
-    async def get_by_id(self, widget_id: int) -> Widget | None:
-        """
-        Create a new widget entry in the database.
-
-        Args:
-            widget_id: The ID number of the widget.
-
-        Returns:
-            Widget | None: The created widget instance.
-        """
-        ...  # pragma: no cover
-
-
-class WidgetRepository(WidgetRepositoryProtocol):
+class WidgetRepository:
     """
     Repository implementation for Widget operations.
 
@@ -86,7 +58,7 @@ class WidgetRepository(WidgetRepositoryProtocol):
         wait=wait_fixed(0.2),
         after=tenacity_retry_log(logger),
     )
-    async def get_by_id(self, widget_id: int) -> Widget | None:
+    async def get_by_id(self, widget_id: int) -> Widget:
         """
         Retrieve a widget by its ID from the database.
 
@@ -94,14 +66,48 @@ class WidgetRepository(WidgetRepositoryProtocol):
             widget_id: The ID of the widget to retrieve.
 
         Returns:
-            Widget | None: The retrieved widget instance, or None if not found.
+            Widget: The retrieved widget instance.
+
+        Raises:
+            ResourceNotFoundError: If the widget is not found.
         """
         logger.debug(f"Fetching widget by ID: {widget_id}")
         db_widget = await self.db.get(Widget, widget_id)
 
         if db_widget is None:
             logger.warning(f"Widget with ID {widget_id} not found.")
-        else:
-            logger.debug(f"Retrieved widget: {db_widget}")
+            raise ResourceNotFoundError(widget_id, "Widget")
 
+        logger.debug(f"Retrieved widget: {db_widget}")
+        return db_widget
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(0.2),
+        after=tenacity_retry_log(logger),
+    )
+    async def update_force(self, widget_id: int, new_force: int) -> Widget:
+        """
+        Update the force property of a widget.
+
+        Args:
+            widget_id: The ID of the widget to retrieve.
+            new_force: The new value for the force property.
+
+        Returns:
+            Widget: The updated widget.
+
+        Raises:
+            ResourceNotFoundError: If the widget is not found.
+        """
+        logger.debug(f"Updating force for widget ID {widget_id} to {new_force}")
+        db_widget = await self.db.get(Widget, widget_id)
+
+        if db_widget is None:
+            logger.warning(f"Widget with ID {widget_id} not found.")
+            raise ResourceNotFoundError(widget_id, "Widget")
+
+        logger.debug(f"Widget ID {widget_id} force updated to {new_force}")
+        db_widget.force = new_force
         return db_widget

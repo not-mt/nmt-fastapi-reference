@@ -13,7 +13,7 @@ from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 
 from app.core.v1.settings import AppSettings
-from app.errors.v1.exceptions import NotFoundError
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.repositories.v1.gadgets import GadgetRepository
 from app.schemas.v1.gadgets import GadgetCreate, GadgetRead, GadgetZap, GadgetZapTask
 from app.services.v1.gadgets import GadgetService
@@ -136,14 +136,14 @@ async def test_gadget_get_by_id_not_found(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
 ):
-    """Test NotFoundError when retrieving a non-existent gadget by ID."""
+    """Test ResourceNotFoundError when retrieving a non-existent gadget by ID."""
 
     service = GadgetService(
         mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
     )
     mock_gadget_repository.get_by_id = AsyncMock(return_value=None)
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(ResourceNotFoundError):
         await service.gadget_get_by_id(123)
 
     # raising the exception is all that needs to be tested
@@ -224,14 +224,14 @@ async def test_gadget_zap_not_found(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
 ):
-    """Test NotFoundError when attempting to zap a non-existent gadget."""
+    """Test ResourceNotFoundError when attempting to zap a non-existent gadget."""
 
     service = GadgetService(
         mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
     )
     mock_gadget_repository.get_by_id = AsyncMock(return_value=None)
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(ResourceNotFoundError):
         await service.gadget_zap(
             gadget_id=123,
             payload={"duration": 1},
@@ -248,7 +248,7 @@ async def test_gadget_zap_by_uuid_not_found_task(
     mock_cache: AppCacheBase,
     mock_gadget_read: GadgetRead,
 ):
-    """Test NotFoundError when the zap task metadata is not found."""
+    """Test ResourceNotFoundError when the zap task metadata is not found."""
 
     service = GadgetService(
         mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
@@ -263,7 +263,7 @@ async def test_gadget_zap_by_uuid_not_found_task(
             patch("app.services.v1.gadgets.fetch_task_metadata", return_value=None)
         )
 
-        with pytest.raises(NotFoundError, match="Task"):
+        with pytest.raises(ResourceNotFoundError, match="Task"):
             await service.gadget_zap_by_uuid(mock_gadget_read.id, "non-existent-uuid")
 
         mock_gadget_repository.get_by_id.assert_called_once_with(mock_gadget_read.id)
@@ -317,14 +317,14 @@ async def test_gadget_zap_by_uuid_not_found(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
 ):
-    """Test NotFoundError when attempting to zap a non-existent gadget."""
+    """Test ResourceNotFoundError when attempting to zap a non-existent gadget."""
 
     service = GadgetService(
         mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
     )
     mock_gadget_repository.get_by_id = AsyncMock(return_value=None)
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(ResourceNotFoundError):
         await service.gadget_zap_by_uuid(
             gadget_id=123,
             task_uuid="not-a-real-uuid",

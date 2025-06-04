@@ -21,12 +21,13 @@ from app.core.v1.discovery import create_api_clients
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
+    generic_not_found_error_handler,
     index_out_of_range_error_handler,
-    not_found_error_handler,
+    resource_not_found_error_handler,
     server_error_handler,
     upstream_api_exception_handler,
 )
-from app.errors.v1.exceptions import NotFoundError
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.routers.v1.gadgets import gadgets_router
 from app.routers.v1.upstream import widgets_api_router
 from app.routers.v1.widgets import widgets_router
@@ -56,11 +57,21 @@ def register_exception_handlers() -> None:
     """
     Registers exception handlers for custom and built-in errors.
     """
-    app.add_exception_handler(NotFoundError, not_found_error_handler)
-    app.add_exception_handler(IndexError, index_out_of_range_error_handler)
-    app.add_exception_handler(status.HTTP_404_NOT_FOUND, not_found_error_handler)
     app.add_exception_handler(
-        status.HTTP_500_INTERNAL_SERVER_ERROR, server_error_handler
+        status.HTTP_404_NOT_FOUND,
+        generic_not_found_error_handler,
+    )
+    app.add_exception_handler(
+        ResourceNotFoundError,
+        resource_not_found_error_handler,
+    )
+    app.add_exception_handler(
+        IndexError,
+        index_out_of_range_error_handler,
+    )
+    app.add_exception_handler(
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        server_error_handler,
     )
     app.add_exception_handler(
         UpstreamApiException,

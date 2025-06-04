@@ -15,24 +15,38 @@ from nmtfast.errors.v1.exceptions import (
 )
 
 from app.errors.v1.exception_handlers import (
+    generic_not_found_error_handler,
     index_out_of_range_error_handler,
-    not_found_error_handler,
+    resource_not_found_error_handler,
     server_error_handler,
     upstream_api_exception_handler,
 )
 
 
-def test_not_found_error_handler():
+def test_generic_not_found_error_handler():
     """
-    Test not_found_error_handler.
+    Test generic_not_found_error_handler.
     """
     request = MagicMock(spec=Request)
     exc = HTTPException(status_code=404)
-    response = not_found_error_handler(request, exc)
+    response = generic_not_found_error_handler(request, exc)
 
     assert isinstance(response, JSONResponse)
     assert response.status_code == 404
     assert json.loads(response.body) == {"message": "Not Found"}
+
+
+def test_resource_not_found_error_handler():
+    """
+    Test resource_not_found_error_handler.
+    """
+    request = MagicMock(spec=Request)
+    exc = HTTPException(status_code=404)
+    response = resource_not_found_error_handler(request, exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 404
+    assert json.loads(response.body) == {"message": "404: Not Found"}
 
 
 def test_server_error_handler():

@@ -18,8 +18,8 @@ from nmtfast.tasks.v1.huey import (
 
 from app.core.v1.settings import AppSettings
 from app.core.v1.tasks import huey_app
-from app.errors.v1.exceptions import NotFoundError
-from app.repositories.v1.gadgets import GadgetRepositoryProtocol
+from app.errors.v1.exceptions import ResourceNotFoundError
+from app.repositories.v1.gadgets import GadgetRepository
 from app.schemas.v1.gadgets import (
     GadgetCreate,
     GadgetRead,
@@ -44,12 +44,12 @@ class GadgetService:
 
     def __init__(
         self,
-        gadget_repository: GadgetRepositoryProtocol,
+        gadget_repository: GadgetRepository,
         acls: list,
         settings: AppSettings,
         cache: AppCacheBase,
     ) -> None:
-        self.gadget_repository: GadgetRepositoryProtocol = gadget_repository
+        self.gadget_repository: GadgetRepository = gadget_repository
         self.acls = acls
         self.settings = settings
         self.cache = cache
@@ -91,7 +91,7 @@ class GadgetService:
             gadget_id: The ID of the gadget to retrieve.
 
         Raises:
-            NotFoundError: If the gadget is not found.
+            ResourceNotFoundError: If the gadget is not found.
 
         Returns:
             GadgetRead: The retrieved gadget.
@@ -100,7 +100,7 @@ class GadgetService:
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
 
         if not db_gadget:
-            raise NotFoundError(gadget_id, "Gadget")
+            raise ResourceNotFoundError(gadget_id, "Gadget")
 
         return GadgetRead.model_validate(db_gadget)
 
@@ -113,7 +113,7 @@ class GadgetService:
             payload: Parameters for the async task.
 
         Raises:
-            NotFoundError: If the gadget is not found.
+            ResourceNotFoundError: If the gadget is not found.
 
         Returns:
             GadgetZapTask: Information about the newly created task.
@@ -122,7 +122,7 @@ class GadgetService:
 
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
         if not db_gadget:
-            raise NotFoundError(gadget_id, "Gadget")
+            raise ResourceNotFoundError(gadget_id, "Gadget")
 
         # start the async task and report the uuid
         result = gadget_zap_task(
@@ -159,7 +159,7 @@ class GadgetService:
             task_uuid: The UUID of the async task.
 
         Raises:
-            NotFoundError: If the gadget is not found.
+            ResourceNotFoundError: If the gadget is not found.
 
         Returns:
             GadgetZapTask: The retrieved gadget.
@@ -168,7 +168,7 @@ class GadgetService:
 
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
         if not db_gadget:
-            raise NotFoundError(gadget_id, "Gadget")
+            raise ResourceNotFoundError(gadget_id, "Gadget")
 
         # NOTE: missing result might mean the task is still running
         task_result = fetch_task_result(huey_app, task_uuid)
@@ -179,6 +179,6 @@ class GadgetService:
         task_md = fetch_task_metadata(huey_app, task_uuid)
         if not task_result and not task_md:
             logger.debug(f"Task metadata not found for {task_uuid}")
-            raise NotFoundError(task_uuid, "Task")
+            raise ResourceNotFoundError(task_uuid, "Task")
 
         return GadgetZapTask.model_validate(task_md)
