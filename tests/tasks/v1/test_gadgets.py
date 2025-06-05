@@ -4,90 +4,129 @@
 
 """Tests for gadget tasks."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from huey.api import Task as HueyTask
+from pymongo import AsyncMongoClient
 
-from app.schemas.v1.gadgets import GadgetZapTask
-from app.tasks.v1.gadgets import gadget_zap_task
+from app.schemas.v1.gadgets import GadgetRead, GadgetZapTask
+from app.tasks.v1.gadgets import (
+    GadgetZapParams,
+    _async_logic_gadget_zap,
+    _async_mongo_gadget_zap,
+    gadget_zap_task,
+)
 
 
 @pytest.fixture
 def mock_gadget():
     """
-    Fixture for a mock gadget dict (as stored in MongoDB).
+    Fixture to return a mock Gadget DTO.
     """
-    return {
-        "id": "id-1",
-        "name": "ZapBot 5000",
-        "force": 5,
-    }
+    return GadgetRead(id="123", name="Mock Gadget", force=42)
 
 
 @pytest.fixture
-def mock_mongo_db(mock_gadget):
+def mock_task():
     """
-    Fixture for a mock MongoDB database with a 'gadgets' collection.
+    Fixture to return a mock async task.
     """
-    collection = MagicMock()
-    collection.find_one.return_value = mock_gadget.copy()
-    collection.update_one.return_value = None
-    mongo_db = {"gadgets": collection}
-
-    return mongo_db
+    task = MagicMock(spec=HueyTask)
+    task.id = "abc-123"
+    return task
 
 
-def test_gadget_zap_task(monkeypatch, mock_mongo_db, mock_task, mock_gadget):
+@pytest.fixture
+def mock_mongo_client():
     """
-    Test the gadget_zap_task logic directly (bypassing Huey scheduler).
+    Fixture to return a mocked AsyncMongoClient.
     """
+    mongo_client = MagicMock(spec=AsyncMongoClient)
+    patcher = pytest.MonkeyPatch()
+    # patcher.setattr("app.tasks.v1.gadgets.GadgetRepository", lambda _: repo_mock)
+    yield mongo_client
+    patcher.undo()
+    return mongo_client
 
-    # NOTE: patch time.sleep to avoid delay and metadata helpers
-    monkeypatch.setattr("time.sleep", lambda *args, **kwargs: None)
 
-    def mock_fetch_task_metadata(huey_app, task_id):
-        return GadgetZapTask(
-            uuid=task_id,
-            state="PENDING",
-            id=mock_gadget["id"],
-            duration=1,
-            runtime=0,
-        )
+@pytest.mark.asyncio
+async def test_async_logic_gadget_zap_success(monkeypatch, mock_task):
+    """
+    Test a successful zap of a gadget, isolated from async DB/huey wrappers.
+    """
+    mock_task = MagicMock()
+    mock_task.id = "mock-task-id"
+    params = GadgetZapParams(request_id="abc-123", gadget_id="gadget-42", duration=1)
 
-    def mock_store_task_metadata(huey_app, task_id, task_md):
-        pass  # NOTE: we could assert calls if needed
+    mock_repo = AsyncMock()
+    mock_repo.get_by_id.return_value = GadgetRead(id="gadget-42", name="test", force=5)
+    mock_repo.update_force.return_value = None
 
+    monkeypatch.setattr("app.tasks.v1.gadgets.GadgetRepository", lambda _: mock_repo)
     monkeypatch.setattr(
         "app.tasks.v1.gadgets.fetch_task_metadata",
-        mock_fetch_task_metadata,
+        lambda _, __: GadgetZapTask(
+            uuid="mock-task-id", id="gadget-42", state="PENDING", duration=1, runtime=0
+        ),
     )
-    monkeypatch.setattr(
-        "app.tasks.v1.gadgets.store_task_metadata",
-        mock_store_task_metadata,
-    )
+    monkeypatch.setattr("app.tasks.v1.gadgets.store_task_metadata", lambda *_: None)
 
-    # NOTE: we are calling the task function directly, skipping the @huey_app.task
-    #   decorator, and then we "unwrap" the @with_sync_mongo_db wrapper because that will
-    #   clobber the mongo_db=mock_mongo_db that we are providing directly to the
-    #   task
+    result = await _async_logic_gadget_zap(params, mock_task, mongo_client=MagicMock())
 
-    result = gadget_zap_task.func.__wrapped__(
-        request_id="test-request-id",
-        gadget_id=mock_gadget["id"],
-        duration=1,
-        task=mock_task,
-        mongo_db=mock_mongo_db,
-    )
-
-    # validate the returned schema
     assert isinstance(result, GadgetZapTask)
     assert result.state == "SUCCESS"
     assert result.runtime == 1
 
-    # verify DB interactions
-    collection = mock_mongo_db["gadgets"]
-    collection.find_one.assert_called_once_with({"id": mock_gadget["id"]})
-    collection.update_one.assert_called_once_with(
-        {"id": mock_gadget["id"]},
-        {"$set": {"force": mock_gadget["force"] + 1}},
+
+@pytest.mark.asyncio
+async def test_async_mongo_gadget_zap_success(
+    monkeypatch, mock_task, mock_mongo_client
+):
+    """
+    Test a successful zap of a gadget, isolating the async Mongo wrapper.
+    """
+    expected = GadgetZapTask(
+        uuid="abc-123", state="SUCCESS", id="123", duration=1, runtime=1
     )
+    monkeypatch.setattr(
+        "app.core.v1.mongo.AsyncMongoClient",
+        lambda *args, **kwargs: mock_mongo_client,
+    )
+    monkeypatch.setattr(
+        "app.tasks.v1.gadgets._async_logic_gadget_zap",
+        AsyncMock(return_value=expected),
+    )
+
+    params = GadgetZapParams(request_id="req-1", gadget_id="123", duration=1)
+    result = await _async_mongo_gadget_zap(
+        params=params, task=mock_task, mongo_client=mock_mongo_client
+    )
+
+    assert result == expected
+
+
+def test_gadget_zap_task_wrapper(monkeypatch):
+    """
+    Test a successful zap of a gadget, isolating the sync Huey task wrapper.
+    """
+    expected_result = GadgetZapTask(
+        uuid="abc-123",
+        state="SUCCESS",
+        id="123",
+        duration=0,
+        runtime=0,
+    )
+
+    monkeypatch.setattr(
+        "app.tasks.v1.gadgets._async_mongo_gadget_zap",
+        lambda params, task: expected_result,
+    )
+    monkeypatch.setattr("app.tasks.v1.gadgets.asyncio.run", lambda coro: coro)
+
+    params = GadgetZapParams(request_id="req-1", gadget_id="123", duration=0)
+    task = MagicMock()
+    result = gadget_zap_task.func(params=params, task=task)
+
+    assert isinstance(result, GadgetZapTask)
+    assert result == expected_result

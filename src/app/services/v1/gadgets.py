@@ -26,7 +26,7 @@ from app.schemas.v1.gadgets import (
     GadgetZap,
     GadgetZapTask,
 )
-from app.tasks.v1.gadgets import gadget_zap_task
+from app.tasks.v1.gadgets import GadgetZapParams, gadget_zap_task
 
 logger = logging.getLogger(__name__)
 
@@ -90,17 +90,11 @@ class GadgetService:
         Args:
             gadget_id: The ID of the gadget to retrieve.
 
-        Raises:
-            ResourceNotFoundError: If the gadget is not found.
-
         Returns:
             GadgetRead: The retrieved gadget.
         """
         await self._is_authz(self.acls, "read")
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
-
-        if not db_gadget:
-            raise ResourceNotFoundError(gadget_id, "Gadget")
 
         return GadgetRead.model_validate(db_gadget)
 
@@ -112,23 +106,21 @@ class GadgetService:
             gadget_id: The ID of the gadget to zap.
             payload: Parameters for the async task.
 
-        Raises:
-            ResourceNotFoundError: If the gadget is not found.
-
         Returns:
             GadgetZapTask: Information about the newly created task.
         """
         await self._is_authz(self.acls, "zap")
 
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
-        if not db_gadget:
-            raise ResourceNotFoundError(gadget_id, "Gadget")
+        logger.debug(f"Preparing to zap gadget ID {db_gadget.id}")
 
         # start the async task and report the uuid
         result = gadget_zap_task(
-            REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
-            gadget_id,
-            duration=payload.duration,
+            GadgetZapParams(
+                request_id=REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
+                gadget_id=gadget_id,
+                duration=payload.duration,
+            )
         )
         task_uuid = "PENDING"
         # if hasattr(result, "task"):
@@ -158,17 +150,16 @@ class GadgetService:
             gadget_id: The ID of the gadget.
             task_uuid: The UUID of the async task.
 
-        Raises:
-            ResourceNotFoundError: If the gadget is not found.
-
         Returns:
             GadgetZapTask: The retrieved gadget.
+
+        Raises:
+            ResourceNotFoundError: If the gadget is not found.
         """
         await self._is_authz(self.acls, "read")
 
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
-        if not db_gadget:
-            raise ResourceNotFoundError(gadget_id, "Gadget")
+        logger.debug(f"Fetching zap status for gadget ID {db_gadget.id}")
 
         # NOTE: missing result might mean the task is still running
         task_result = fetch_task_result(huey_app, task_uuid)

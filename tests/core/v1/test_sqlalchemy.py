@@ -36,31 +36,6 @@ def test_with_ssl_mode_default_context():
         assert isinstance(sqlalchemy_module.ssl_context, ssl.SSLContext)
 
 
-# def test_with_huey_db_session_injects_db_session():
-#     """
-#     Test that with_huey_db_session injects a db_session and calls the wrapped function.
-#     """
-#     called_args = {}
-#
-#     @with_huey_db_session
-#     async def dummy_function(x, y, db_session=None):
-#         called_args["x"] = x
-#         called_args["y"] = y
-#         called_args["db_session"] = db_session
-#         return "success"
-#
-#     with patch("app.core.v1.sqlalchemy.sync_session") as mock_sessionmaker:
-#         mock_context = mock_sessionmaker.return_value.__enter__.return_value
-#         mock_context.get.return_value = "mocked result"
-#
-#         result = dummy_function(1, 2)
-#
-#         # check return value and db_session injection
-#         assert result == "success"
-#         assert isinstance(called_args["db_session"], MagicMock)
-#         assert called_args["db_session"] is mock_context
-
-
 @pytest.mark.asyncio
 async def test_with_huey_db_session_injects_db_session():
     """

@@ -23,6 +23,9 @@ from app.services.v1.widgets import WidgetService
 
 @pytest.fixture
 def mock_cache():
+    """
+    Fixture to return a mock AppCacheBase.
+    """
     return AsyncMock(spec=AppCacheBase)
 
 
@@ -91,8 +94,9 @@ async def test_widget_create(
     mock_widget_create: WidgetCreate,
     mock_widget_read: WidgetRead,
 ):
-    """Test successful creation of a widget."""
-
+    """
+    Test successful creation of a widget.
+    """
     service = WidgetService(
         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
     )
@@ -112,8 +116,9 @@ async def test_widget_create_authorization_error(
     mock_cache: AppCacheBase,
     mock_widget_create: WidgetCreate,
 ):
-    """Test authorization error during widget creation."""
-
+    """
+    Test authorization error during widget creation.
+    """
     service = WidgetService(
         mock_widget_repository, mock_deny_acls, mock_settings, mock_cache
     )
@@ -132,7 +137,9 @@ async def test_widget_get_by_id_success(
     mock_cache: AppCacheBase,
     mock_widget_read: WidgetRead,
 ):
-    """Test successful retrieval of a widget by ID."""
+    """
+    Test successful retrieval of a widget by ID.
+    """
 
     service = WidgetService(
         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
@@ -145,26 +152,6 @@ async def test_widget_get_by_id_success(
     assert result.id == mock_widget_read.id
 
 
-# @pytest.mark.asyncio
-# async def test_widget_get_by_id_not_found(
-#     mock_widget_repository: AsyncMock,
-#     mock_allow_acls: list[SectionACL],
-#     mock_settings: AppSettings,
-#     mock_cache: AppCacheBase,
-# ):
-#     """Test ResourceNotFoundError when retrieving a non-existent widget by ID."""
-#
-#     service = WidgetService(
-#         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
-#     )
-#     mock_widget_repository.get_by_id = AsyncMock(return_value=None)
-#
-#     with pytest.raises(ResourceNotFoundError):
-#         await service.widget_get_by_id(123)
-#
-#     # raising the exception is all that needs to be tested
-
-
 @pytest.mark.asyncio
 async def test_widget_get_by_id_authorization_error(
     mock_widget_repository: AsyncMock,
@@ -172,8 +159,9 @@ async def test_widget_get_by_id_authorization_error(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
 ):
-    """Test authorization error during widget retrieval."""
-
+    """
+    Test authorization error during widget retrieval.
+    """
     service = WidgetService(
         mock_widget_repository, mock_deny_acls, mock_settings, mock_cache
     )
@@ -194,8 +182,9 @@ async def test_widget_zap_success(
     mock_widget_zap: WidgetZap,
     mock_widget_zap_task: WidgetZapTask,
 ):
-    """Test successful zapping of a widget."""
-
+    """
+    Test successful zapping of a widget.
+    """
     service = WidgetService(
         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
     )
@@ -233,29 +222,6 @@ async def test_widget_zap_success(
         assert result.duration == mock_widget_zap.duration
 
 
-# @pytest.mark.asyncio
-# async def test_widget_zap_not_found(
-#     mock_widget_repository: AsyncMock,
-#     mock_allow_acls: list[SectionACL],
-#     mock_settings: AppSettings,
-#     mock_cache: AppCacheBase,
-# ):
-#     """Test ResourceNotFoundError when attempting to zap a non-existent widget."""
-#
-#     service = WidgetService(
-#         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
-#     )
-#     mock_widget_repository.get_by_id = AsyncMock(return_value=None)
-#
-#     with pytest.raises(ResourceNotFoundError):
-#         await service.widget_zap(
-#             widget_id=123,
-#             payload=WidgetZap(duration=1),
-#         )
-#
-#     # raising the exception is all that needs to be tested
-
-
 @pytest.mark.asyncio
 async def test_widget_zap_by_uuid_not_found_task(
     mock_widget_repository: AsyncMock,
@@ -264,8 +230,9 @@ async def test_widget_zap_by_uuid_not_found_task(
     mock_cache: AppCacheBase,
     mock_widget_read: WidgetRead,
 ):
-    """Test ResourceNotFoundError when the zap task metadata is not found."""
-
+    """
+    Test ResourceNotFoundError when the zap task metadata is not found.
+    """
     service = WidgetService(
         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
     )
@@ -296,8 +263,9 @@ async def test_widget_zap_by_uuid_returns_task_result(
     mock_widget_read: WidgetRead,
     mock_widget_zap_task: WidgetZapTask,
 ):
-    """Test that widget_zap_by_uuid returns task_result when it's available."""
-
+    """
+    Test that widget_zap_by_uuid returns task_result when it's available.
+    """
     service = WidgetService(
         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
     )
@@ -334,8 +302,9 @@ async def test_widget_zap_by_uuid_not_found(
     mock_cache: AppCacheBase,
     mock_db_widget: Widget,
 ):
-    """Test ResourceNotFoundError when attempting to zap a non-existent widget."""
-
+    """
+    Test ResourceNotFoundError when attempting to zap a non-existent widget.
+    """
     service = WidgetService(
         mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
     )

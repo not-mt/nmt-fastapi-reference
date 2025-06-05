@@ -4,7 +4,9 @@
 
 """MongoDB client setup."""
 
+import logging
 from functools import wraps
+from typing import Any, Callable, Coroutine, TypeVar
 
 from pymongo import AsyncMongoClient, MongoClient
 
@@ -18,19 +20,48 @@ if settings.mongo.url:
     async_client = AsyncMongoClient(settings.mongo.url)
     sync_client = MongoClient(settings.mongo.url)
 
+T = TypeVar("T")
 
-def with_sync_mongo_db():
+logger = logging.getLogger(__name__)
+
+
+def with_huey_mongo_session(
+    func: Callable[..., Coroutine[Any, Any, T]],
+) -> Callable[..., Coroutine[Any, Any, T]]:
     """
-    Provide a sync pymongo database as the 'mongo_db' keyword argument.
+    Decorator to inject an async MongoDB database instance into Huey tasks.
+
+    This creates a new client and database handle per task, injecting it into
+    the decorated async function as 'mongo_client' and ensures proper cleanup.
+
+    Args:
+        func: The asynchronous function to be decorated. It must accept
+              a `mongo_client` keyword argument.
+
+    Returns:
+        Callable[..., Coroutine[Any, Any, T]]: A new asynchronous function that
+            wraps the original, managing the database connection lifecycle.
     """
 
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            assert sync_client is not None, "sync_client is not initialized"
-            kwargs["mongo_db"] = sync_client[settings.mongo.db]
-            return func(*args, **kwargs)
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
+        db_name = settings.mongo.db
+        huey_async_client: AsyncMongoClient = AsyncMongoClient(settings.mongo.url)
+        mongo_client = huey_async_client[db_name]
 
-        return wrapper
+        try:
+            logger.debug(f"Running: {func.__qualname__} with MongoDB: {db_name}")
+            kwargs["mongo_client"] = mongo_client
+            result = await func(*args, **kwargs)
+            return result
+        except Exception as exc:
+            logger.critical(
+                f"Error in {func.__qualname__} using MongoDB: {exc}",
+                exc_info=True,
+            )
+            raise
+        finally:
+            logger.debug(f"Cleaned up MongoDB client for: {func.__qualname__}")
+            await huey_async_client.close()
 
-    return decorator
+    return wrapper

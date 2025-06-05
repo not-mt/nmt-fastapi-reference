@@ -6,7 +6,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
@@ -16,7 +16,6 @@ from app.dependencies.v1.auth import authenticate_headers, get_acls
 from app.dependencies.v1.cache import get_cache
 from app.dependencies.v1.mongo import get_mongo_db
 from app.dependencies.v1.settings import get_settings
-from app.errors.v1.exceptions import ResourceNotFoundError
 from app.repositories.v1.gadgets import GadgetRepository
 from app.schemas.v1.gadgets import (
     GadgetCreate,
@@ -102,16 +101,9 @@ async def gadget_get_by_id(
 
     Returns:
         GadgetRead: The retrieved gadget data.
-
-    Raises:
-        HTTPException: If the resource does not exist.
     """
-    try:
-        gadget = await gadget_service.gadget_get_by_id(gadget_id)
-    except ResourceNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
-
-    return gadget
+    logger.info(f"Attempting to find gadget {gadget_id}")
+    return await gadget_service.gadget_get_by_id(gadget_id)
 
 
 @gadgets_router.post(
@@ -135,17 +127,11 @@ async def gadget_zap(
         payload: The gadget task parameters.
         gadget_service: The gadget service instance.
 
-    Raises:
-        HTTPException: If the resource does not exist.
-
     Returns:
         GadgetZapTask: Information about the new task that was created.
     """
     logger.info(f"Attempting to zap gadget {gadget_id}: {payload}")
-    try:
-        return await gadget_service.gadget_zap(gadget_id, payload)
-    except ResourceNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
+    return await gadget_service.gadget_zap(gadget_id, payload)
 
 
 @gadgets_router.get(
@@ -170,16 +156,6 @@ async def gadget_zap_get_task(
 
     Returns:
         GadgetZapTask: The retrieved gadget task data.
-
-    Raises:
-        HTTPException: If the resource does not exist.
     """
-    try:
-        task_md = await gadget_service.gadget_zap_by_uuid(
-            gadget_id,
-            task_uuid,
-        )
-    except ResourceNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
-
-    return task_md
+    logger.info(f"Attempting to find zap status for task {task_uuid}")
+    return await gadget_service.gadget_zap_by_uuid(gadget_id, task_uuid)

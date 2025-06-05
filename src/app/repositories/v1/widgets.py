@@ -47,6 +47,7 @@ class WidgetRepository:
         db_widget = Widget(**widget.model_dump())
         self.db.add(db_widget)
         logger.debug(f"Adding widget: {widget.model_dump()}")
+
         await self.db.commit()
         await self.db.refresh(db_widget)
 
@@ -77,8 +78,8 @@ class WidgetRepository:
         if db_widget is None:
             logger.warning(f"Widget with ID {widget_id} not found.")
             raise ResourceNotFoundError(widget_id, "Widget")
-
         logger.debug(f"Retrieved widget: {db_widget}")
+
         return db_widget
 
     @retry(
@@ -107,7 +108,7 @@ class WidgetRepository:
         if db_widget is None:
             logger.warning(f"Widget with ID {widget_id} not found.")
             raise ResourceNotFoundError(widget_id, "Widget")
-
         logger.debug(f"Widget ID {widget_id} force updated to {new_force}")
         db_widget.force = new_force
+
         return db_widget

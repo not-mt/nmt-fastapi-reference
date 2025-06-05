@@ -102,6 +102,7 @@ async def widget_get_by_id(
     Returns:
         WidgetRead: The retrieved widget data.
     """
+    logger.info(f"Attempting to find widget {widget_id}")
     return await widget_service.widget_get_by_id(widget_id)
 
 
@@ -129,6 +130,7 @@ async def widget_zap(
     Returns:
         WidgetZapTask: Information about the new task that was created.
     """
+    logger.info(f"Attempting to zap widget {widget_id}: {payload}")
     return await widget_service.widget_zap(widget_id, payload)
 
 
@@ -155,4 +157,5 @@ async def widget_zap_get_task(
     Returns:
         WidgetZapTask: The retrieved widget task data.
     """
+    logger.info(f"Attempting to find zap status for task {task_uuid}")
     return await widget_service.widget_zap_by_uuid(widget_id, task_uuid)
