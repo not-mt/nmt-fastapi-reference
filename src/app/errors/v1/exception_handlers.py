@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from nmtfast.errors.v1.exceptions import UpstreamApiException
 
 
-def not_found_error_handler(request: Request, exc: Exception) -> JSONResponse:
+def generic_not_found_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     Handle generic 404 HTTP exceptions.
 
@@ -30,6 +30,23 @@ def not_found_error_handler(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=404,
         content={"message": "Not Found"},
+    )
+
+
+def resource_not_found_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handle generic 404 HTTP exceptions when a resource could not be found.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The raised HTTPException with status 404.
+
+    Returns:
+        JSONResponse: A 404 response with a generic error message.
+    """
+    return JSONResponse(
+        status_code=404,
+        content={"message": f"{exc}"},
     )
 
 

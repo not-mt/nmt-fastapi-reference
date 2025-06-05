@@ -4,10 +4,12 @@
 
 """Unit tests for core SQLAlchemy functions."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.core.v1.settings import AppSettings, SqlAlchemySettings
-from app.core.v1.sqlalchemy import with_sync_session
+from app.core.v1.sqlalchemy import with_huey_db_session
 
 
 def test_with_ssl_mode_default_context():
@@ -34,26 +36,35 @@ def test_with_ssl_mode_default_context():
         assert isinstance(sqlalchemy_module.ssl_context, ssl.SSLContext)
 
 
-def test_with_sync_session_injects_db_session():
+@pytest.mark.asyncio
+async def test_with_huey_db_session_injects_db_session():
     """
-    Test that with_sync_session injects a db_session and calls the wrapped function.
+    Test that with_huey_db_session injects a db_session and calls the wrapped function.
     """
     called_args = {}
 
-    @with_sync_session
-    def dummy_function(x, y, db_session=None):
+    @with_huey_db_session
+    async def dummy_function(x, y, db_session=None):
         called_args["x"] = x
         called_args["y"] = y
         called_args["db_session"] = db_session
         return "success"
 
-    with patch("app.core.v1.sqlalchemy.sync_session") as mock_sessionmaker:
-        mock_context = mock_sessionmaker.return_value.__enter__.return_value
-        mock_context.get.return_value = "mocked result"
+    mock_session = AsyncMock()
+    mock_session.__aenter__.return_value = mock_session
+    mock_session.__aexit__.return_value = None
+    # Ensure commit, rollback, and close are all AsyncMock too
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
 
-        result = dummy_function(1, 2)
+    with patch("app.core.v1.sqlalchemy.huey_session", return_value=mock_session):
+        result = await dummy_function(1, 2)
 
-        # check return value and db_session injection
-        assert result == "success"
-        assert isinstance(called_args["db_session"], MagicMock)
-        assert called_args["db_session"] is mock_context
+    assert result == "success"
+    assert called_args["x"] == 1
+    assert called_args["y"] == 2
+    assert called_args["db_session"] == mock_session
+    mock_session.commit.assert_awaited_once()
+    mock_session.rollback.assert_not_called()
+    mock_session.close.assert_awaited_once()

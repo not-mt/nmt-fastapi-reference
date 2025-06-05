@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.models.v1.widgets import Widget
 from app.repositories.v1.widgets import WidgetRepository
 from app.schemas.v1.widgets import WidgetCreate
@@ -86,7 +87,35 @@ async def test_widget_get_by_id_not_found(mock_async_session: AsyncMock):
     repository = WidgetRepository(mock_async_session)
     mock_async_session.get.return_value = None
 
-    result = await repository.get_by_id(123)
+    with pytest.raises(ResourceNotFoundError):
+        await repository.get_by_id(123)
 
-    mock_async_session.get.assert_called_once_with(Widget, 123)
-    assert result is None
+
+@pytest.mark.asyncio
+async def test_update_force_success(
+    mock_async_session: AsyncMock,
+    mock_db_widget: Widget,
+):
+    """Test successfully updating the force value of a widget."""
+
+    repository = WidgetRepository(mock_async_session)
+    mock_async_session.get.return_value = mock_db_widget
+    mock_async_session.commit.return_value = None
+    mock_async_session.refresh.return_value = None
+
+    new_force = 42
+    result = await repository.update_force(mock_db_widget.id, new_force)
+
+    assert result is mock_db_widget
+    assert result.force == new_force
+
+
+@pytest.mark.asyncio
+async def test_update_force_widget_not_found(mock_async_session: AsyncMock):
+    """Test update_force raises ResourceNotFoundError when widget does not exist."""
+
+    repository = WidgetRepository(mock_async_session)
+    mock_async_session.get.return_value = None
+
+    with pytest.raises(ResourceNotFoundError, match="Widget with ID 1 not found"):
+        await repository.update_force(1, 123)

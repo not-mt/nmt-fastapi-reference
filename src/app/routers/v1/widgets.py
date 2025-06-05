@@ -6,7 +6,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,6 @@ from app.dependencies.v1.auth import authenticate_headers, get_acls
 from app.dependencies.v1.cache import get_cache
 from app.dependencies.v1.settings import get_settings
 from app.dependencies.v1.sqlalchemy import get_sql_db
-from app.errors.v1.exceptions import NotFoundError
 from app.repositories.v1.widgets import WidgetRepository
 from app.schemas.v1.widgets import (
     WidgetCreate,
@@ -102,16 +101,9 @@ async def widget_get_by_id(
 
     Returns:
         WidgetRead: The retrieved widget data.
-
-    Raises:
-        HTTPException: If the resource does not exist.
     """
-    try:
-        widget = await widget_service.widget_get_by_id(widget_id)
-    except NotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
-
-    return widget
+    logger.info(f"Attempting to find widget {widget_id}")
+    return await widget_service.widget_get_by_id(widget_id)
 
 
 @widgets_router.post(
@@ -135,17 +127,11 @@ async def widget_zap(
         payload: The widget task parameters.
         widget_service: The widget service instance.
 
-    Raises:
-        HTTPException: If the resource does not exist.
-
     Returns:
         WidgetZapTask: Information about the new task that was created.
     """
     logger.info(f"Attempting to zap widget {widget_id}: {payload}")
-    try:
-        return await widget_service.widget_zap(widget_id, payload)
-    except NotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
+    return await widget_service.widget_zap(widget_id, payload)
 
 
 @widgets_router.get(
@@ -170,16 +156,6 @@ async def widget_zap_get_task(
 
     Returns:
         WidgetZapTask: The retrieved widget task data.
-
-    Raises:
-        HTTPException: If the resource does not exist.
     """
-    try:
-        task_md = await widget_service.widget_zap_by_uuid(
-            widget_id,
-            task_uuid,
-        )
-    except NotFoundError as exc:
-        raise HTTPException(status_code=404, detail=f"NOT FOUND: {exc}")
-
-    return task_md
+    logger.info(f"Attempting to find zap status for task {task_uuid}")
+    return await widget_service.widget_zap_by_uuid(widget_id, task_uuid)

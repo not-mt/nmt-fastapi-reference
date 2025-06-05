@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.sqlalchemy import get_sql_db
-from app.errors.v1.exceptions import NotFoundError
+from app.errors.v1.exceptions import ResourceNotFoundError
 from app.main import app
 from app.repositories.v1.widgets import WidgetRepository
 from app.routers.v1.widgets import authenticate_headers, get_widget_service
@@ -184,7 +184,7 @@ async def test_widget_get_by_id_endpoint_not_found(
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_widget_service.widget_get_by_id = AsyncMock(
-        side_effect=NotFoundError(resource_id=123, resource_name="Widget"),
+        side_effect=ResourceNotFoundError(resource_id=123, resource_name="Widget"),
     )
 
     response = client.get(
@@ -249,7 +249,7 @@ async def test_widget_zap_endpoint_not_found(
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_widget_service.widget_zap = AsyncMock(
-        side_effect=NotFoundError(resource_id=123, resource_name="Widget"),
+        side_effect=ResourceNotFoundError(resource_id=123, resource_name="Widget"),
     )
 
     response = client.post(
@@ -324,7 +324,7 @@ async def test_widget_zap_endpoint_status_not_found(
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_widget_service.widget_zap_by_uuid = AsyncMock(
-        side_effect=NotFoundError(resource_id=123, resource_name="Widget"),
+        side_effect=ResourceNotFoundError(resource_id=123, resource_name="Widget"),
     )
 
     response = client.get(

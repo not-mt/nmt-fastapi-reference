@@ -4,8 +4,10 @@
 
 """SQLAlchemy engine and session setup."""
 
+import logging
 import ssl
 from functools import wraps
+from typing import Any, Callable, Coroutine, TypeVar
 
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
@@ -17,10 +19,9 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.core.v1.settings import get_app_settings
 
+logger = logging.getLogger(__name__)
 settings = get_app_settings()
 Base = declarative_base()  # needed for Alembic migrations
-
-# TODO: add support in nmtfast for echo=True to see SQLAlchemy SQL statements
 
 # NOTE: asynchronous SQLAlchemy engine and session should be used with
 #   dependency injection for normal API calls
@@ -40,10 +41,17 @@ async_engine = create_async_engine(
     pool_timeout=settings.sqlalchemy.pool_timeout,
     pool_recycle=settings.sqlalchemy.pool_recycle,
 )
+# NOTE: the Huey SQLAlchemy engine and session should ONLY BE USED for
+#   background tasks that are scheduled and executed by Huey (duh)
+huey_engine = create_async_engine(
+    url=settings.sqlalchemy.url,
+    echo=settings.sqlalchemy.echo,
+    connect_args=connect_args,
+)
 
 if settings.sqlalchemy.ssl_mode == "default":
     # NOTE: asyncpg and aiomysql require using an actual SSLContext, and
-    #   not strings...
+    #   not strings
     ssl_context = ssl.create_default_context()
     connect_args["ssl"] = ssl_context
 
@@ -59,8 +67,19 @@ if settings.sqlalchemy.ssl_mode == "default":
         pool_recycle=settings.sqlalchemy.pool_recycle,
     )
 
+    # NOTE: the Huey SQLAlchemy engine and session should ONLY BE USED for
+    #   background tasks that are scheduled and executed by Huey (duh)
+    huey_engine = create_async_engine(
+        url=settings.sqlalchemy.url,
+        echo=settings.sqlalchemy.echo,
+        connect_args=connect_args,
+    )
+
 async_session = async_sessionmaker(
     bind=async_engine, class_=AsyncSession, expire_on_commit=False
+)
+huey_session = async_sessionmaker(
+    bind=huey_engine, class_=AsyncSession, expire_on_commit=False
 )
 
 # Convert async URL to sync
@@ -72,7 +91,7 @@ sync_url = (
 )
 
 # NOTE: synchronous SQLAlchemy engine and session should ONLY BE USED for
-#   background tasks that are scheduled and executed by Huey
+#   Alembic (it may be refactored later)
 sync_engine = create_engine(
     url=sync_url,
     echo=settings.sqlalchemy.echo,
@@ -86,16 +105,46 @@ sync_engine = create_engine(
 )
 sync_session = sessionmaker(bind=sync_engine)
 
+T = TypeVar("T")  # preserves the return type of the original coroutine
 
-def with_sync_session(func):
+
+def with_huey_db_session(
+    func: Callable[..., Coroutine[Any, Any, T]],
+) -> Callable[..., Coroutine[Any, Any, T]]:
     """
-    Provide a SQLAlchemy session to a function as the 'db_session' keyword argument.
+    Specialized session decorator for Huey tasks.
+
+    This is designed to creates a new session per task and ensure complete cleanup
+    and breakdown of DB sessions for async tasks.
+
+    Args:
+        func: The asynchronous function to be wrapped. This function is expected
+            to accept a 'db_session' keyword argument.
+
+    Returns:
+        Callable[..., Coroutine[Any, Any, T]]: A new asynchronous function that
+            wraps the original, managing the database session lifecycle.
     """
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
-        with sync_session() as db_session:
-            kwargs["db_session"] = db_session
-            return func(*args, **kwargs)
+    async def wrapper(*args: Any, **kwargs: Any) -> T:
+        async with huey_session() as session:
+            try:
+                kwargs["db_session"] = session
+                logger.debug(f"Running: {func.__qualname__}")
+                result = await func(*args, **kwargs)
+                await session.commit()
+                return result
+            except Exception as exc:
+                logger.critical(
+                    f"Error in {func.__qualname__}, rolling back session: {exc}",
+                    exc_info=True,
+                )
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+                await huey_engine.dispose()  # Clean up all connection pools
+                logger.debug(f"Disposed DB engine after: {func.__qualname__}")
 
     return wrapper

@@ -4,15 +4,15 @@
 
 """Unit tests for exceptions."""
 
-from app.errors.v1.exceptions import NotFoundError
+from app.errors.v1.exceptions import ResourceNotFoundError
 
 
 def test_not_found_error_initialization():
-    """Tests the initialization of the NotFoundError."""
+    """Tests the initialization of the ResourceNotFoundError."""
 
     resource_id = "123"
     resource_name = "Widget"
-    error = NotFoundError(resource_id, resource_name)
+    error = ResourceNotFoundError(resource_id, resource_name)
 
     assert error.resource_id == resource_id
     assert error.resource_name == resource_name
@@ -20,11 +20,11 @@ def test_not_found_error_initialization():
 
 
 def test_not_found_error_int_id():
-    """Tests the initialization of the NotFoundError with an integer resource ID."""
+    """Tests the initialization of the ResourceNotFoundError with an integer resource ID."""
 
     resource_id = 456
     resource_name = "Item"
-    error = NotFoundError(resource_id, resource_name)
+    error = ResourceNotFoundError(resource_id, resource_name)
 
     assert error.resource_id == resource_id
     assert error.resource_name == resource_name
@@ -32,11 +32,11 @@ def test_not_found_error_int_id():
 
 
 def test_not_found_error_string_id():
-    """Tests the initialization of the NotFoundError with a string resource ID."""
+    """Tests the initialization of the ResourceNotFoundError with a string resource ID."""
 
     resource_id = "abc-def"
     resource_name = "Product"
-    error = NotFoundError(resource_id, resource_name)
+    error = ResourceNotFoundError(resource_id, resource_name)
 
     assert error.resource_id == resource_id
     assert error.resource_name == resource_name

@@ -4,8 +4,11 @@
 
 """Unit tests for core MongoDB functions."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from app.core.v1.mongo import with_huey_mongo_session
 from app.core.v1.settings import AppSettings, MongoSettings
 
 
@@ -48,8 +51,9 @@ def test_mongo_clients_initialization_with_url():
 
 
 def test_mongo_clients_not_initialized_without_url():
-    """Test clients remain None when mongo.url is empty string."""
-
+    """
+    Test clients remain None when mongo.url is empty string.
+    """
     test_app_settings = AppSettings(mongo=MongoSettings(url="", db="test-db"))
 
     with patch(
@@ -68,43 +72,47 @@ def test_mongo_clients_not_initialized_without_url():
         assert mongo_module.sync_client is None
 
 
-def test_with_sync_mongo_db_decorator():
+@pytest.mark.asyncio
+async def test_with_huey_mongo_session_success():
     """
-    Test the with_sync_mongo_db decorator.
+    Test that the decorator injects mongo_client and runs successfully.
     """
-    test_app_settings = AppSettings(
-        mongo=MongoSettings(url="mongodb://localhost:27017", db="test-db")
-    )
-    mock_db = MagicMock()
-    mock_db.name = "test-db"
-    mock_sync_client = MagicMock()
-    mock_sync_client.__getitem__.return_value = mock_db
+    called_args = {}
 
-    with (
-        patch(
-            "app.core.v1.settings.get_app_settings",
-            return_value=test_app_settings,
-        ),
-        patch(
-            "pymongo.MongoClient",
-            return_value=mock_sync_client,
-        ),
-    ):
-        # NOTE: reload module to get fresh state
-        import importlib
+    @with_huey_mongo_session
+    async def dummy_task(*args, **kwargs):
+        called_args.update(kwargs)
+        return "ok"
 
-        import app.core.v1.mongo as mongo_module
+    async_client_mock = MagicMock()
+    async_client_mock.__getitem__.return_value = AsyncMock()
+    async_client_mock.close = AsyncMock()
 
-        importlib.reload(mongo_module)
+    with patch("app.core.v1.mongo.AsyncMongoClient", return_value=async_client_mock):
+        result = await dummy_task()
 
-        called = False
+        assert result == "ok"
+        assert "mongo_client" in called_args
+        assert called_args["mongo_client"] == async_client_mock.__getitem__.return_value
+        async_client_mock.close.assert_awaited_once()
 
-        @mongo_module.with_sync_mongo_db()
-        def test_function(mongo_db=None):
-            nonlocal called
-            called = True
-            assert mongo_db is not None
-            assert mongo_db.name == "test-db"
 
-        test_function()
-        assert called
+@pytest.mark.asyncio
+async def test_with_huey_mongo_session_exception():
+    """
+    Test that the decorator logs and re-raises exceptions.
+    """
+
+    @with_huey_mongo_session
+    async def failing_task(*args, **kwargs):
+        raise ValueError("boom")
+
+    async_client_mock = MagicMock()
+    async_client_mock.__getitem__.return_value = AsyncMock()
+    async_client_mock.close = AsyncMock()
+
+    with patch("app.core.v1.mongo.AsyncMongoClient", return_value=async_client_mock):
+        with pytest.raises(ValueError, match="boom"):
+            await failing_task()
+
+        async_client_mock.close.assert_awaited_once()
