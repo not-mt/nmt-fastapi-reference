@@ -18,6 +18,7 @@ from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
 from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 
 from app.core.v1.discovery import create_api_clients
+from app.core.v1.health import set_app_not_ready, set_app_ready
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
@@ -29,6 +30,7 @@ from app.errors.v1.exception_handlers import (
 )
 from app.errors.v1.exceptions import ResourceNotFoundError
 from app.routers.v1.gadgets import gadgets_router
+from app.routers.v1.health import health_router
 from app.routers.v1.upstream import widgets_api_router
 from app.routers.v1.widgets import widgets_router
 
@@ -48,6 +50,7 @@ def register_routers() -> None:
     """
     Registers all API routers.
     """
+    app.include_router(health_router)
     app.include_router(widgets_router)
     app.include_router(widgets_api_router)
     app.include_router(gadgets_router)
@@ -99,7 +102,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database schema created (only if necessary)")
 
+    set_app_ready()
     yield
+
+    # NOTE: context manager handles graceful shutdown correctly--a signal
+    #   handler for SIGTERM is not needed
+    set_app_not_ready()
     logger.info("Lifespan ended")
 
 
