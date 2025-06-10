@@ -67,6 +67,8 @@ logging:
       level: INFO
     "httpcore":
       level: INFO
+    "app.services.v1.health":
+      level: INFO
 
 tasks:
   name: nmt-fastapi-reference
