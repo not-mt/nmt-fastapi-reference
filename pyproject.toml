@@ -1,6 +1,6 @@
 [project]
 name = "app"
-version = "0.4.2"
+version = "0.4.3"
 description = "A sample FastAPI reference design"
 authors = [
     {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"}
@@ -31,6 +31,7 @@ dependencies = [
     "pymysql (>=1.1.1,<2.0.0)",
     "httpx (>=0.28.1,<0.29.0)",
     "authlib (>=1.6.0,<2.0.0)",
+    "aiokafka (>=0.12.0,<0.13.0)",
 ]
 packages = [
     { include = "app", from = "src" }
@@ -112,6 +113,10 @@ mypy_path = "src"
 
 [[tool.mypy.overrides]]
 module = "huey.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "aiokafka.*"
 ignore_missing_imports = true
 
 #[[tool.mypy.overrides]]

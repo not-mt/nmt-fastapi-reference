@@ -5,7 +5,9 @@
 """This module defines API endpoints for managing widgets."""
 
 import logging
+from typing import Optional
 
+from aiokafka import AIOKafkaProducer
 from fastapi import APIRouter, Depends, status
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
@@ -14,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.v1.settings import AppSettings
 from app.dependencies.v1.auth import authenticate_headers, get_acls
 from app.dependencies.v1.cache import get_cache
+from app.dependencies.v1.kafka import get_kafka_producer
 from app.dependencies.v1.settings import get_settings
 from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.repositories.v1.widgets import WidgetRepository
@@ -38,6 +41,7 @@ def get_widget_service(
     acls: list[SectionACL] = Depends(get_acls),
     settings: AppSettings = Depends(get_settings),
     cache: AppCacheBase = Depends(get_cache),
+    kafka: Optional[AIOKafkaProducer] = Depends(get_kafka_producer),
 ) -> WidgetService:
     """
     Dependency function to provide a WidgetService instance.
@@ -47,13 +51,14 @@ def get_widget_service(
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
         cache: An implementation of AppCacheBase, used for getting/setting cache data.
+        kafka: Optional Kafka producer, if enabled in configuration.
 
     Returns:
         WidgetService: An instance of the widget service.
     """
     widget_repository = WidgetRepository(db)
 
-    return WidgetService(widget_repository, acls, settings, cache)
+    return WidgetService(widget_repository, acls, settings, cache, kafka)
 
 
 @widgets_router.post(

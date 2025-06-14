@@ -19,6 +19,7 @@ from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 
 from app.core.v1.discovery import create_api_clients
 from app.core.v1.health import set_app_not_ready, set_app_ready
+from app.core.v1.kafka import create_kafka_consumers, create_kafka_producer
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
@@ -102,12 +103,24 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.create_all)
         logger.info("Database schema created (only if necessary)")
 
+    logger.info("Starting Kafka consumers/producer (if any)...")
+    consumer_tasks = await create_kafka_consumers()
+    kafka_producer = await create_kafka_producer()
+
+    # NOTE: /health/readiness checks will pass after this
     set_app_ready()
     yield
 
     # NOTE: context manager handles graceful shutdown correctly--a signal
     #   handler for SIGTERM is not needed
     set_app_not_ready()
+
+    logger.info("Shutting down Kafka consumers/producer (if any)...")
+    if kafka_producer:
+        await kafka_producer.stop()
+    for task in consumer_tasks:
+        task.cancel()
+
     logger.info("Lifespan ended")
 
 

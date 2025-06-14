@@ -35,7 +35,9 @@ def test_logging_settings():
 def test_app_settings():
     """Test AppSettings model."""
     settings = AppSettings(
-        app_name="Test App", sqlalchemy={"url": "test_db"}, logging={"level": "WARNING"}
+        app_name="Test App",
+        sqlalchemy=SqlAlchemySettings(url="test_db"),
+        logging=LoggingSettings(level="WARNING"),
     )
     assert settings.app_name == "Test App"
     assert settings.sqlalchemy.url == "test_db"

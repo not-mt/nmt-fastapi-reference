@@ -7,6 +7,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from aiokafka import AIOKafkaProducer
 from fastapi.testclient import TestClient
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
@@ -34,7 +35,18 @@ def mock_async_session() -> AsyncMock:
 
 @pytest.fixture
 def mock_cache():
+    """
+    Fixture to generate a mock app cache.
+    """
     return AsyncMock(spec=AppCacheBase)
+
+
+@pytest.fixture
+def mock_kafka():
+    """
+    Fixture to generate a mock Kafka producer.
+    """
+    return AsyncMock(spec=AIOKafkaProducer)
 
 
 @pytest.fixture
@@ -51,12 +63,17 @@ def mock_widget_service(
     mock_allow_acls: list[SectionACL],
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
+    mock_kafka: AIOKafkaProducer,
 ) -> WidgetService:
     """
     Fixture to provide a mock WidgetService.
     """
     return WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
 
 

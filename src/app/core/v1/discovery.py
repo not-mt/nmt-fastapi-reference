@@ -20,7 +20,7 @@ api_clients = {}  # this will be populated by create_api_clients()
 required_clients = ["widgets"]
 
 
-async def create_api_clients():
+async def create_api_clients() -> None:
     """
     Create all API clients when the app starts.
     """

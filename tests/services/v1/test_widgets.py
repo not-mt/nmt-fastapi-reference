@@ -8,6 +8,7 @@ import contextlib
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
+from aiokafka import AIOKafkaProducer
 from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
@@ -27,6 +28,14 @@ def mock_cache():
     Fixture to return a mock AppCacheBase.
     """
     return AsyncMock(spec=AppCacheBase)
+
+
+@pytest.fixture
+def mock_kafka():
+    """
+    Fixture to generate a mock Kafka producer.
+    """
+    return AsyncMock(spec=AIOKafkaProducer)
 
 
 @pytest.fixture
@@ -93,12 +102,17 @@ async def test_widget_create(
     mock_cache: AppCacheBase,
     mock_widget_create: WidgetCreate,
     mock_widget_read: WidgetRead,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test successful creation of a widget.
     """
     service = WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
     mock_widget_repository.widget_create = AsyncMock(return_value=mock_widget_read)
     result = await service.widget_create(mock_widget_create)
@@ -109,18 +123,106 @@ async def test_widget_create(
 
 
 @pytest.mark.asyncio
+async def test_widget_create_with_kafka_send(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_cache: AppCacheBase,
+    mock_widget_create: WidgetCreate,
+    mock_widget_read: WidgetRead,
+    mock_kafka: AsyncMock,
+    mock_settings: AppSettings,
+):
+    """
+    Test widget_create sends Kafka message when Kafka is enabled.
+    """
+    mock_settings.kafka.enabled = True
+
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+
+    # Setup repository to return widget_read
+    mock_widget_repository.widget_create = AsyncMock(return_value=mock_widget_read)
+
+    # Call the method
+    result = await service.widget_create(mock_widget_create)
+
+    # Validate repository call
+    mock_widget_repository.widget_create.assert_called_once_with(mock_widget_create)
+
+    # Validate kafka.send called once with expected topic/key/value
+    mock_kafka.send.assert_awaited_once()
+    called_args, called_kwargs = mock_kafka.send.call_args
+
+    assert called_kwargs.get("topic") == "nmtfast-widgets"
+    assert called_kwargs.get("key") == "create-widget"
+    # The value should be a WidgetRead instance (validated model)
+    sent_value = called_kwargs.get("value")
+    assert isinstance(sent_value, WidgetRead)
+    assert sent_value.id == mock_widget_read.id
+    assert sent_value.name == mock_widget_read.name
+
+    # Also validate the returned result
+    assert isinstance(result, WidgetRead)
+    assert result.id == mock_widget_read.id
+
+
+@pytest.mark.asyncio
+async def test_widget_create_without_kafka(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_cache: AppCacheBase,
+    mock_widget_create: WidgetCreate,
+    mock_widget_read: WidgetRead,
+    mock_kafka: AsyncMock,
+    mock_settings: AppSettings,
+):
+    """
+    Test widget_create does NOT send Kafka message when Kafka is disabled.
+    """
+    mock_settings.kafka.enabled = False  # Kafka disabled
+
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+
+    mock_widget_repository.widget_create = AsyncMock(return_value=mock_widget_read)
+
+    result = await service.widget_create(mock_widget_create)
+
+    mock_widget_repository.widget_create.assert_called_once_with(mock_widget_create)
+    mock_kafka.send.assert_not_called()
+
+    assert isinstance(result, WidgetRead)
+    assert result.id == mock_widget_read.id
+
+
+@pytest.mark.asyncio
 async def test_widget_create_authorization_error(
     mock_widget_repository: AsyncMock,
     mock_deny_acls: list[SectionACL],
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
     mock_widget_create: WidgetCreate,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test authorization error during widget creation.
     """
     service = WidgetService(
-        mock_widget_repository, mock_deny_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_deny_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
 
     with pytest.raises(AuthorizationError):
@@ -136,13 +238,18 @@ async def test_widget_get_by_id_success(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
     mock_widget_read: WidgetRead,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test successful retrieval of a widget by ID.
     """
 
     service = WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
     mock_widget_repository.get_by_id = AsyncMock(return_value=mock_widget_read)
     result = await service.widget_get_by_id(mock_widget_read.id)
@@ -158,12 +265,17 @@ async def test_widget_get_by_id_authorization_error(
     mock_deny_acls: list[SectionACL],
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test authorization error during widget retrieval.
     """
     service = WidgetService(
-        mock_widget_repository, mock_deny_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_deny_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
 
     with pytest.raises(AuthorizationError):
@@ -180,13 +292,17 @@ async def test_widget_zap_success(
     mock_cache: AppCacheBase,
     mock_widget_read: WidgetRead,
     mock_widget_zap: WidgetZap,
-    mock_widget_zap_task: WidgetZapTask,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test successful zapping of a widget.
     """
     service = WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
     mock_widget_repository.get_by_id = AsyncMock(return_value=mock_widget_read)
 
@@ -229,12 +345,17 @@ async def test_widget_zap_by_uuid_not_found_task(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
     mock_widget_read: WidgetRead,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test ResourceNotFoundError when the zap task metadata is not found.
     """
     service = WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
     mock_widget_repository.get_by_id = AsyncMock(return_value=mock_widget_read)
 
@@ -262,12 +383,17 @@ async def test_widget_zap_by_uuid_returns_task_result(
     mock_cache: AppCacheBase,
     mock_widget_read: WidgetRead,
     mock_widget_zap_task: WidgetZapTask,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test that widget_zap_by_uuid returns task_result when it's available.
     """
     service = WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
     mock_widget_repository.get_by_id = AsyncMock(return_value=mock_widget_read)
 
@@ -301,12 +427,17 @@ async def test_widget_zap_by_uuid_not_found(
     mock_settings: AppSettings,
     mock_cache: AppCacheBase,
     mock_db_widget: Widget,
+    mock_kafka: AIOKafkaProducer,
 ):
     """
     Test ResourceNotFoundError when attempting to zap a non-existent widget.
     """
     service = WidgetService(
-        mock_widget_repository, mock_allow_acls, mock_settings, mock_cache
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
     )
     mock_widget_repository.get_by_id = AsyncMock(return_value=mock_db_widget)
 

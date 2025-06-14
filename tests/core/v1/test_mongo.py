@@ -8,8 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.core.v1.mongo import with_huey_mongo_session
 from app.core.v1.settings import AppSettings, MongoSettings
+
+# NOTE: each test needs to import app.core.v1.kafka so that patching of objects
+#   like kafka_producer can succeed
 
 
 def test_mongo_clients_initialization_with_url():
@@ -77,6 +79,8 @@ async def test_with_huey_mongo_session_success():
     """
     Test that the decorator injects mongo_client and runs successfully.
     """
+    from app.core.v1.mongo import with_huey_mongo_session
+
     called_args = {}
 
     @with_huey_mongo_session
@@ -102,6 +106,7 @@ async def test_with_huey_mongo_session_exception():
     """
     Test that the decorator logs and re-raises exceptions.
     """
+    from app.core.v1.mongo import with_huey_mongo_session
 
     @with_huey_mongo_session
     async def failing_task(*args, **kwargs):

@@ -5,7 +5,7 @@
 """Application settings and defaults, defined with pydantic-settings."""
 
 import logging
-from typing import Literal
+from typing import Literal, Optional
 
 from nmtfast.settings.v1.config_files import get_config_files, load_config
 from nmtfast.settings.v1.schemas import (
@@ -64,6 +64,55 @@ class CustomDiscoverySettings(ServiceDiscoverySettings):
     custom: dict[str, dict] = {}
 
 
+class KafkaSettings(BaseModel):
+    """
+    Kafka settings model.
+
+    Configuration model for connecting to a Kafka cluster using aiokafka;
+    supports optional security mechanisms including SASL and SSL.
+
+    Attributes:
+        enabled: Whether Kafka features are enabled in the application.
+
+        bootstrap_servers: A list of Kafka broker addresses to connect to.
+        group_id: The consumer group ID used to join a group for offset tracking.
+        auto_offset_reset: Offset reset policy when no initial offset is present
+            ("earliest", "latest", or "none").
+        topics: A list of Kafka topics to subscribe to.
+
+        security_protocol: Kafka security protocol to use. Options include
+            "PLAINTEXT", "SSL", "SASL_PLAINTEXT", and "SASL_SSL".
+        sasl_mechanism: SASL mechanism to use if a SASL-based protocol is selected.
+            Supported mechanisms include "PLAIN", "SCRAM-SHA-256", and "SCRAM-SHA-512".
+        sasl_plain_username: SASL authentication username, used with PLAIN or
+            SCRAM mechanisms.
+        sasl_plain_password: SASL authentication password, used with PLAIN or
+            SCRAM mechanisms.
+
+        ssl_cafile: Path to the CA certificate file for verifying the broker's
+            certificate.
+        ssl_certfile: Path to the client's SSL certificate file (optional, for mTLS).
+        ssl_keyfile: Path to the client's SSL private key file (optional, for mTLS).
+    """
+
+    enabled: bool = False
+    bootstrap_servers: list[str] = ["localhost:29092"]
+    group_id: str = "nmt-fastapi-reference"
+    auto_offset_reset: Literal["earliest", "latest", "none"] = "earliest"
+    topics: list[str] = ["nmtfast-widgets"]
+    security_protocol: Literal["PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"] = (
+        "PLAINTEXT"
+    )
+    sasl_mechanism: Optional[Literal["PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"]] = None
+    sasl_plain_username: Optional[str] = None
+    sasl_plain_password: Optional[str] = None
+
+    # TODO: add support for this later
+    ssl_cafile: Optional[str] = None
+    ssl_certfile: Optional[str] = None
+    ssl_keyfile: Optional[str] = None
+
+
 class AppSettings(BaseSettings):
     """Application settings model."""
 
@@ -88,6 +137,7 @@ class AppSettings(BaseSettings):
         services={},
         custom={},
     )
+    kafka: KafkaSettings = KafkaSettings()
     logging: LoggingSettings = LoggingSettings()
     tasks: TaskSettings = TaskSettings(
         name="FIXME",
