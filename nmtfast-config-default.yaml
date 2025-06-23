@@ -58,6 +58,15 @@ discovery:
     #   auth_principal: some_outbound_api_client
     #   provider: some_oidc_provider_here
 
+kafka:
+  enabled: false
+  bootstrap_servers:
+    - localhost:29092
+  security_protocol: PLAINTEXT
+  group_id: nmt-fastapi-reference
+  topics:
+    - nmtfast-widgets
+
 logging:
   level: DEBUG
   loggers:
@@ -66,6 +75,8 @@ logging:
     "pymongo":
       level: INFO
     "httpcore":
+      level: INFO
+    "aiokafka":
       level: INFO
     "app.services.v1.health":
       level: INFO

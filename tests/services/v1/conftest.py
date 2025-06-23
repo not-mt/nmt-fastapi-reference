@@ -8,10 +8,19 @@ from unittest.mock import AsyncMock
 
 import argon2
 import pytest
-from nmtfast.settings.v1.schemas import IncomingAuthApiKey, SectionACL
+from nmtfast.settings.v1.schemas import (
+    IncomingAuthApiKey,
+    IncomingAuthSettings,
+    SectionACL,
+)
 from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
-from app.core.v1.settings import AppSettings, AuthSettings, LoggingSettings
+from app.core.v1.settings import (
+    AppSettings,
+    AuthSettings,
+    KafkaSettings,
+    LoggingSettings,
+)
 
 ph = argon2.PasswordHasher()
 
@@ -41,16 +50,21 @@ def mock_settings(mock_api_key: str) -> AppSettings:
         auth=AuthSettings(
             swagger_token_url="http://localhost/token",
             id_providers={},
-            clients={},
-            api_keys={
-                "key1": IncomingAuthApiKey(
-                    contact="some.user@domain.tld",
-                    memo="pytest fixture",
-                    hash=ph.hash(mock_api_key),
-                    algo="argon2",
-                    acls=[SectionACL(section_regex=".*", permissions=["*"])],
-                )
-            },
+            incoming=IncomingAuthSettings(
+                clients={},
+                api_keys={
+                    "key1": IncomingAuthApiKey(
+                        contact="some.user@domain.tld",
+                        memo="pytest fixture",
+                        hash=ph.hash(mock_api_key),
+                        algo="argon2",
+                        acls=[SectionACL(section_regex=".*", permissions=["*"])],
+                    )
+                },
+            ),
+        ),
+        kafka=KafkaSettings(
+            enabled=True,
         ),
         logging=LoggingSettings(
             level="DEBUG",

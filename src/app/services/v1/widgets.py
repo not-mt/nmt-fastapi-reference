@@ -5,7 +5,9 @@
 """Business logic for widget resources."""
 
 import logging
+from typing import Optional
 
+from aiokafka import AIOKafkaProducer
 from nmtfast.auth.v1.acl import check_acl
 from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.cache.v1.base import AppCacheBase
@@ -40,6 +42,7 @@ class WidgetService:
         acls: List of ACLs associated with authenticated client/apikey.
         settings: The application's AppSettings object.
         cache: An implementation of AppCacheBase, for getting/setting cached data.
+        kafka: Optional Kafka producer, if enabled in configuration.
     """
 
     def __init__(
@@ -48,11 +51,13 @@ class WidgetService:
         acls: list,
         settings: AppSettings,
         cache: AppCacheBase,
+        kafka: Optional[AIOKafkaProducer],
     ) -> None:
         self.widget_repository: WidgetRepository = widget_repository
         self.acls = acls
         self.settings = settings
         self.cache = cache
+        self.kafka = kafka
 
     async def _is_authz(self, acls: list, permission: str) -> None:
         """
@@ -77,9 +82,21 @@ class WidgetService:
 
         Returns:
             WidgetRead: The newly created widget as a Pydantic model.
+
+        Raises:
+            AssertionError: Raised if Kafka support is enabled and producer is None.
         """
         await self._is_authz(self.acls, "create")
         db_widget = await self.widget_repository.widget_create(input_widget)
+
+        # NOTE: this is a demonstration of publishing Kafka messages
+        if self.settings.kafka.enabled:
+            assert isinstance(self.kafka, AIOKafkaProducer)
+            await self.kafka.send(
+                topic="nmtfast-widgets",
+                key="create-widget",
+                value=WidgetRead.model_validate(db_widget),
+            )
 
         return WidgetRead.model_validate(db_widget)
 
