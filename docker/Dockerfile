@@ -89,6 +89,9 @@ RUN groupadd -g $APP_GID app && \
 COPY --from=lib-builder /build/dist /app/dist
 COPY --from=app-builder /build/dist /app/dist
 
+# copy pyproject.toml file, which is needed to load OpenAPI schema
+COPY --from=app-builder /build/pyproject.toml /app/pyproject.toml
+
 # build venv, install packages build in earlier stages
 RUN python3 -m venv /app/venv && \
     . /app/venv/bin/activate && \
