@@ -5,17 +5,22 @@ A FastAPI-based microservice leveraging the `nmtfast` Python package for structu
 ## Features
 
 - **OAuth 2.0 & API Key Authentication**: Secure endpoints using `nmtfast`'s authentication and authorization methods.
-- **Role-Based & Resource-Based ACLs**: Fine-grained access control managed via YAML configurations.
-- **Asynchronous API Handling**: Fully async support using FastAPI and SQLAlchemy async drivers.
-- **Structured Logging**: Custom formatting, control over loggers on a per-module basis, and unique IDs recorded for each request.
-- **Docker Examples**: Easily deployable with a provided `Dockerfile` and sample `docker-compose.yaml`
-- **Merged Configuration Files**: Configuration settings may be merged from multiple sources using `nmtfast`, allowing secrets to be isolated to separate configuration files.
+- **Role-Based & Resource-Based ACLs**: Fine-grained access control managed via YAML configurations, supporting locally defined API keys as well as external identity providers.
+- **Backend Integration**:
+  - **PostgreSQL & Other RDBMS**: Managed via SQLAlchemy with async support and migrations using Alembic.
+  - **Redis**: Used for caching, deduplication, and ephemeral state.
+  - **MongoDB**: Async document storage using Motor for high-performance NoSQL access.
+  - **Kafka**: Async event streaming with aiokafka for producer and consumer support.
+- **Asynchronous API Handling**: Fully async stack using FastAPI, SQLAlchemy, MongoDB, and Kafka async drivers.
+- **Structured Logging**: Per-request unique IDs, configurable logger hierarchy, and customizable log formatters.
+- **Docker Examples**: Easily deployable with a multi-stage `Dockerfile` and a sample `docker-compose.yaml` for local development.
+- **Merged Configuration Files**: Declarative YAML-based configuration merged in layers (shared defaults, environment overrides, secrets) with full support for SOPS-encrypted values.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.12+
+- Python 3.11+
 - PostgreSQL, MySQL, or MongoDB database
 - Redis
 
@@ -108,10 +113,12 @@ Place the generated hash in the `nmtfast-config-local.yaml` config file; for exa
 ```yaml
 ---
 version: 1
+
 sqlalchemy:
   url: sqlite+aiosqlite:///./development.sqlite
   # url: mysql+aiomysql://user:passwd@dbhost:3306/nmtfastdev1?charset=utf8mb4
   # url: postgresql+asyncpg://user:passwd@dbhost:5432/nmtfastdev1
+
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token
   id_providers: {}
@@ -127,6 +134,7 @@ auth:
           - section_regex: '^widgets$'
             #permissions: ['*']
             permissions: ['create', 'read']
+
 logging:
   level: DEBUG
   loggers:

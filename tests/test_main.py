@@ -62,6 +62,37 @@ def test_task_settings_sqlite_backend() -> None:
         assert isinstance(tasks.huey_app, SqliteHuey)
 
 
+def test_custom_openapi_schema_caching() -> None:
+    """
+    Test that custom_openapi() generates a schema and caches it on the app.
+    """
+
+    from app.main import MD_DESCRIPTION, PROJECT_DATA, custom_openapi
+
+    app = FastAPI()
+
+    # Apply the custom OpenAPI generator
+    app.openapi = custom_openapi(app)
+
+    # First call: schema should be generated and cached
+    schema_first = app.openapi()
+    assert schema_first["info"]["title"] == "nmt-fastapi-reference"
+    assert schema_first["info"]["version"] == PROJECT_DATA["project"]["version"]
+    assert schema_first["info"]["summary"] == PROJECT_DATA["project"]["description"]
+    assert schema_first["info"]["description"] == MD_DESCRIPTION
+    assert schema_first["info"]["x-logo"]["url"].endswith("logo-teal.png")
+
+    # Save the reference to compare later
+    cached_schema = app.openapi_schema
+
+    # Second call: should return the cached version (not regenerated)
+    with patch("fastapi.openapi.utils.get_openapi") as mock_get_openapi:
+        schema_second = app.openapi()
+        mock_get_openapi.assert_not_called()
+
+    assert schema_second is cached_schema
+
+
 def test_logging_configuration(test_app_settings_with_loggers: AppSettings) -> None:
     """
     Test that the logging configuration is applied correctly.

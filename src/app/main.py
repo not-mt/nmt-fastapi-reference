@@ -10,8 +10,10 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import toml  # NOTE: support backwards compatibility <= Python 3.11
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from nmtfast.errors.v1.exceptions import UpstreamApiException
 from nmtfast.logging.v1.config import create_logging_config
 from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
@@ -34,6 +36,71 @@ from app.routers.v1.gadgets import gadgets_router
 from app.routers.v1.health import health_router
 from app.routers.v1.upstream import widgets_api_router
 from app.routers.v1.widgets import widgets_router
+
+# load project metadata from pyproject.toml
+with open("pyproject.toml", "rb") as f_reader:
+    PROJECT_DATA = toml.loads(f_reader.read().decode("utf-8"))
+    AUTHORS = "\n".join(
+        f"- {x['name']} <{x['email']}>" for x in PROJECT_DATA["project"]["authors"]
+    )
+
+MD_DESCRIPTION = f"""
+## Project Home
+
+See complete project details at
+[GitHub](https://github.com/not-mt/nmt-fastapi-reference).
+
+## Features
+
+- **RBAC with OAuth 2.0 & API Keys**: Secure endpoints with role- and resource-based
+        access control.
+- **Async RDBMS, MongoDB, Redis & Kafka**: Uses SQLAlchemy, Motor, aioredis, and
+        aiokafka for non-blocking I/O.
+- **Fully Asynchronous API**: Built on FastAPI with end-to-end async support.
+- **Structured Logging**: Per-module control, request IDs, and customizable formatting.
+- **Composable Config**: Merge settings from multiple files; isolate secrets as needed.
+
+More details are available in the
+[README.md](https://github.com/not-mt/nmt-fastapi-reference/README.md) file.
+
+## Authors
+{AUTHORS}
+"""
+
+
+def custom_openapi(app: FastAPI):
+    """
+    Returns a closure that generates and caches the custom OpenAPI schema for the app.
+    """
+
+    def _openapi() -> dict:
+        """
+        Inner function to generate and cache the OpenAPI schema.
+        """
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        project_version = PROJECT_DATA["project"].get("version", "0.1.0")
+        project_description = PROJECT_DATA["project"].get(
+            "description",
+            "Missing pyproject.toml description",
+        )
+
+        openapi_schema = get_openapi(
+            title="nmt-fastapi-reference",
+            version=project_version,
+            summary=project_description,
+            description=MD_DESCRIPTION,
+            routes=app.routes,
+        )
+        openapi_schema["info"]["x-logo"] = {
+            "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
+        }
+        app.openapi_schema = openapi_schema
+
+        return app.openapi_schema
+
+    return _openapi
 
 
 def configure_logging(settings: AppSettings) -> None:
@@ -146,6 +213,11 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# load custom OpenAPI schema for description, logo, etc
+# app.openapi = custom_openapi(app)
+object.__setattr__(app, "openapi", custom_openapi(app))
+
 # Configure logging immediately after app creation
 configure_logging(get_app_settings())
 
