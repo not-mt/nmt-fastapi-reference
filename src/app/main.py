@@ -61,7 +61,7 @@ See complete project details at
 - **Composable Config**: Merge settings from multiple files; isolate secrets as needed.
 
 More details are available in the
-[README.md](https://github.com/not-mt/nmt-fastapi-reference/README.md) file.
+[README.md](https://github.com/not-mt/nmt-fastapi-reference?tab=readme-ov-file) file.
 
 ## Authors
 {AUTHORS}
