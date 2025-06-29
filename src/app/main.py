@@ -96,6 +96,9 @@ def custom_openapi(app: FastAPI):
         openapi_schema["info"]["x-logo"] = {
             "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
         }
+        # NOTE: set servers manually when using custom OpenAPI schema
+        openapi_schema["servers"] = [{"url": app.root_path or "/"}]
+
         app.openapi_schema = openapi_schema
 
         return app.openapi_schema
