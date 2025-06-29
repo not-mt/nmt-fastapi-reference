@@ -61,7 +61,7 @@ See complete project details at
 - **Composable Config**: Merge settings from multiple files; isolate secrets as needed.
 
 More details are available in the
-[README.md](https://github.com/not-mt/nmt-fastapi-reference/README.md) file.
+[README.md](https://github.com/not-mt/nmt-fastapi-reference?tab=readme-ov-file) file.
 
 ## Authors
 {AUTHORS}
@@ -96,6 +96,9 @@ def custom_openapi(app: FastAPI):
         openapi_schema["info"]["x-logo"] = {
             "url": "https://fastapi.tiangolo.com/img/logo-margin/logo-teal.png"
         }
+        # NOTE: set servers manually when using custom OpenAPI schema
+        openapi_schema["servers"] = [{"url": app.root_path or "/"}]
+
         app.openapi_schema = openapi_schema
 
         return app.openapi_schema
