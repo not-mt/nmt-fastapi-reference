@@ -22,6 +22,7 @@ from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 from app.core.v1.discovery import create_api_clients
 from app.core.v1.health import set_app_not_ready, set_app_ready
 from app.core.v1.kafka import create_kafka_consumers, create_kafka_producer
+from app.core.v1.mcp import register_mcp
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
@@ -218,12 +219,15 @@ app.add_middleware(
 )
 
 # load custom OpenAPI schema for description, logo, etc
-# app.openapi = custom_openapi(app)
 object.__setattr__(app, "openapi", custom_openapi(app))
 
-# Configure logging immediately after app creation
+# configure logging immediately after app creation
 configure_logging(get_app_settings())
 
-# Finalize application setup
+# finalize application setup
 register_routers()
 register_exception_handlers()
+
+# register MCP
+mcp = register_mcp(app)
+mcp.mount()
