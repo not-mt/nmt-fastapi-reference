@@ -58,6 +58,10 @@ discovery:
     #   auth_principal: some_outbound_api_client
     #   provider: some_oidc_provider_here
 
+mcp:
+  headers: {}
+  timeout: 10.0
+
 kafka:
   enabled: false
   bootstrap_servers:
@@ -77,6 +81,12 @@ logging:
     "httpcore":
       level: INFO
     "aiokafka":
+      level: INFO
+    "sse_starlette.sse":
+      level: INFO
+    "mcp.server":
+      level: INFO
+    "fastapi_mcp":
       level: INFO
     "app.services.v1.health":
       level: INFO

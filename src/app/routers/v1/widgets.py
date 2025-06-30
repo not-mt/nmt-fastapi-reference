@@ -67,6 +67,7 @@ def get_widget_service(
     status_code=status.HTTP_201_CREATED,
     summary="Create a widget",
     description="Create a widget",  # Override the docstring in Swagger UI
+    operation_id="create_widget",  # Custom operation ID for MCP
 )
 async def widget_create(
     widget: WidgetCreate,
@@ -92,6 +93,7 @@ async def widget_create(
     status_code=status.HTTP_200_OK,
     summary="View (read) a widget",
     description="View (read) a widget",  # Override the docstring in Swagger UI
+    operation_id="get_widget",  # Custom operation ID for MCP
 )
 async def widget_get_by_id(
     widget_id: int,
@@ -118,6 +120,7 @@ async def widget_get_by_id(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Zap a widget",
     description="Zap a widget",  # Override the docstring in Swagger UI
+    operation_id="zap_widget",  # Custom operation ID for MCP
 )
 async def widget_zap(
     widget_id: int,
@@ -145,6 +148,7 @@ async def widget_zap(
     status_code=status.HTTP_200_OK,
     summary="View async task status",
     description="View async task status",  # Override the docstring in Swagger UI
+    operation_id="get_zap_widget_status",  # Custom operation ID for MCP
 )
 async def widget_zap_get_task(
     widget_id: int,

@@ -64,6 +64,19 @@ class CustomDiscoverySettings(ServiceDiscoverySettings):
     custom: dict[str, dict] = {}
 
 
+class McpSettings(BaseModel):
+    """
+    Settings for MCP (Model Context Protocol) integration.
+
+    Attributes:
+        headers: Static headers to include in MCP requests.
+        timeout: Request timeout in seconds (as a decimal value).
+    """
+
+    headers: dict[str, str] = {}
+    timeout: float = 10.0
+
+
 class KafkaSettings(BaseModel):
     """
     Kafka settings model.
@@ -137,6 +150,7 @@ class AppSettings(BaseSettings):
         services={},
         custom={},
     )
+    mcp: McpSettings = McpSettings()
     kafka: KafkaSettings = KafkaSettings()
     logging: LoggingSettings = LoggingSettings()
     tasks: TaskSettings = TaskSettings(
