@@ -34,6 +34,12 @@ do
         break
     fi
 
+    if ! supervisorctl status mcp | grep -q RUNNING
+    then
+        echo "mcp process crashed"
+        break
+    fi
+
     if ! supervisorctl status nginx | grep -q RUNNING
     then
         echo "nginx process crashed"
