@@ -73,12 +73,14 @@ class McpSettings(BaseModel):
         openapi_base_url: Base URL for OpenAPI specification.
         openapi_path: Path to the OpenAPI specification.
         mcp_mount_path: Mount path for the MCP interface.
+        max_retries: Maximum number of retries for fetching the OpenAPI spec.
     """
 
     headers: dict[str, str] = {}
     openapi_base_url: str = "http://localhost:8000"
     openapi_path: str = "/openapi.json"
     mcp_mount_path: str = "/mcp"
+    max_retries: int = 5
 
 
 class KafkaSettings(BaseModel):
