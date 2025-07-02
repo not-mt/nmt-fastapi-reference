@@ -59,8 +59,9 @@ discovery:
     #   provider: some_oidc_provider_here
 
 mcp:
-  headers: {}
-  timeout: 10.0
+  headers: {}  # NOTE: you can pass static headers to MCP requests here
+  openapi_base_url: http://localhost:8000
+  openapi_url: /openapi.json
 
 kafka:
   enabled: false

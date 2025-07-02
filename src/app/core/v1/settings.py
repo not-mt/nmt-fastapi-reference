@@ -70,11 +70,15 @@ class McpSettings(BaseModel):
 
     Attributes:
         headers: Static headers to include in MCP requests.
-        timeout: Request timeout in seconds (as a decimal value).
+        openapi_base_url: Base URL for OpenAPI specification.
+        openapi_path: Path to the OpenAPI specification.
+        mcp_mount_path: Mount path for the MCP interface.
     """
 
     headers: dict[str, str] = {}
-    timeout: float = 10.0
+    openapi_base_url: str = "http://localhost:8000"
+    openapi_path: str = "/openapi.json"
+    mcp_mount_path: str = "/mcp"
 
 
 class KafkaSettings(BaseModel):
