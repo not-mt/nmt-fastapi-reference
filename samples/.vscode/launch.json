@@ -7,8 +7,9 @@
     {
       "name": "Compound: uvicorn/huey",
       "configurations": [
+        "debugpy: huey",
+        "debugpy: mcp",
         "debugpy: uvicorn",
-        "debugpy: huey"
       ],
       "stopAll": true
     }
@@ -31,6 +32,22 @@
       "args": [
         "app.task_loader.huey_app",
       ],
+    },
+    {
+      "name": "debugpy: mcp",
+      "consoleName": "mcp",
+      "console":"internalConsole",
+      "internalConsoleOptions": "openOnSessionStart",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.mcp:mcp_app", "--port", "8001",
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "APP_CONFIG_FILES": "nmtfast-config-default.yaml,nmtfast-config-local.yaml",
+      }
     },
     {
       "name": "debugpy: uvicorn",
