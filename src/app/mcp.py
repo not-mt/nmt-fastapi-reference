@@ -4,44 +4,62 @@
 
 """Main entrypoint for FastMCP instance."""
 
-from app.core.v1.settings import AppSettings, get_app_settings
-from app.main import configure_logging
-
+import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from typing import AsyncGenerator
+
+import httpx
 from fastapi import FastAPI
 from fastmcp import FastMCP
-from typing import AsyncGenerator
-import httpx
-import logging
+
+from app.core.v1.settings import get_app_settings
+from app.main import configure_logging
 
 logger = logging.getLogger(__name__)
+settings = get_app_settings()
+
 
 @asynccontextmanager
 async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    Asynchronous context manager for the FastMCP application lifespan.
+
+    This function initializes the FastMCP interface by fetching the OpenAPI spec,
+    creating the FastMCP instance, attaching its ASGI app and lifespan, and mounting
+    it at the configured path. Cleans up resources on shutdown.
+
+    Args:
+        app: The main FastAPI application instance.
+
+    Yields:
+        None: Used for async context management of the app's lifespan.
+    """
     async with AsyncExitStack() as stack:
-        # Fetch OpenAPI spec
-        async with httpx.AsyncClient(base_url="http://127.0.0.1:8000") as client:
-            resp = await client.get("/openapi.json")
+
+        # fetch OpenAPI spec
+        async with httpx.AsyncClient(base_url=settings.mcp.openapi_base_url) as client:
+            resp = await client.get(settings.mcp.openapi_path)
             resp.raise_for_status()
             openapi_spec = resp.json()
 
-            # Create FastMCP instance
+            # create FastMCP instance
             mcp = FastMCP.from_openapi(
                 openapi_spec=openapi_spec,
                 client=client,
-                name="My MCP"
+                name=f"{settings.app_name} MCP Interface",
             )
 
-            # Create FastMCP ASGI app and attach its lifespan
+            # create FastMCP ASGI app and attach its lifespan
             mcp_app = mcp.http_app(path="/")
             await stack.enter_async_context(mcp_app.lifespan(app))
             logger.info("Initialized MCP lifespan")
 
-            # Mount FastMCP app
-            app.mount("/mcp", mcp_app)
-            logger.info("Mounted MCP app at /mcp")
+            # mount FastMCP app
+            app.mount(settings.mcp.mcp_mount_path, mcp_app)
+            logger.info(f"Mounted MCP app at {settings.mcp.mcp_mount_path}")
 
             yield
+
 
 # configure logging before app creation
 configure_logging(get_app_settings())
