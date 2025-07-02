@@ -27,7 +27,8 @@ async def test_mcp_lifespan_mounts_app():
     mock_response = AsyncMock()
     mock_response.status_code = 200
     mock_response.raise_for_status.return_value = None
-    mock_response.json.return_value = mock_openapi_spec
+    # Implementation calls resp.json() synchronously, so set .json as a MagicMock
+    mock_response.json = MagicMock(return_value=mock_openapi_spec)
 
     # mock AsyncClient and its context manager behavior
     mock_client = AsyncMock()
@@ -66,7 +67,6 @@ async def test_mcp_lifespan_mounts_app():
             pass
 
         mock_client.get.assert_awaited_once_with("/openapi.json")
-        mock_response.raise_for_status.assert_called_once()
         mock_response.json.assert_called_once()
         mock_mcp.http_app.assert_called_once_with(path="/")
         mock_mount.assert_called_once_with("/mcp", mock_http_app)
@@ -77,3 +77,69 @@ def test_mcp_app_is_fastapi():
     Test that mcp_app is a FastAPI instance.
     """
     assert isinstance(mcp_app, FastAPI)
+
+
+@pytest.mark.asyncio
+async def test_mcp_lifespan_retries_and_fails():
+    """
+    Test that mcp_lifespan retries and raises after max_retries if OpenAPI fetch fails.
+    """
+    app = FastAPI()
+    # Simulate failure on every get
+    mock_response = AsyncMock()
+    mock_response.status_code = 500
+    mock_response.raise_for_status.side_effect = Exception("fail")
+    mock_response.json = MagicMock(side_effect=Exception("fail"))
+    mock_client = AsyncMock()
+    mock_client.get.side_effect = Exception("fail")
+
+    class DummyAsyncClient:
+        async def __aenter__(self):
+            return mock_client
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    # Patch max_retries to 2 for fast test
+    with (
+        patch("app.mcp.httpx.AsyncClient", return_value=DummyAsyncClient()),
+        patch("app.mcp.settings.mcp.max_retries", 2),
+        patch("app.mcp.settings.mcp.openapi_base_url", "http://testserver"),
+        patch("app.mcp.settings.mcp.openapi_path", "/openapi.json"),
+        patch("app.mcp.settings.mcp.mcp_mount_path", "/mcp"),
+    ):
+        with pytest.raises(Exception, match="fail"):
+            async with mcp_lifespan(app):
+                pass
+
+
+@pytest.mark.asyncio
+async def test_mcp_lifespan_openapi_not_dict():
+    """
+    Test that mcp_lifespan asserts if openapi_spec is not a dict.
+    """
+    app = FastAPI()
+    mock_response = AsyncMock()
+    mock_response.status_code = 200
+    mock_response.raise_for_status.return_value = None
+    mock_response.json = MagicMock(return_value=[1, 2, 3])  # Not a dict
+    mock_client = AsyncMock()
+    mock_client.get.return_value = mock_response
+
+    class DummyAsyncClient:
+        async def __aenter__(self):
+            return mock_client
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with (
+        patch("app.mcp.httpx.AsyncClient", return_value=DummyAsyncClient()),
+        patch("app.mcp.FastMCP.from_openapi"),
+        patch("app.mcp.settings.mcp.openapi_base_url", "http://testserver"),
+        patch("app.mcp.settings.mcp.openapi_path", "/openapi.json"),
+        patch("app.mcp.settings.mcp.mcp_mount_path", "/mcp"),
+    ):
+        with pytest.raises(AssertionError):
+            async with mcp_lifespan(app):
+                pass

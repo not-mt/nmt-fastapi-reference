@@ -4,6 +4,7 @@
 
 """Main entrypoint for FastMCP instance."""
 
+import asyncio
 import logging
 import os
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -34,16 +35,38 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Yields:
         None: Used for async context management of the app's lifespan.
+
+    Raises:
+        Exception: Raised if the OpenAPI spec cannot be fetched for any reason.
+        AssertionError: Raised if the fetched OpenAPI spec is not a valid dictionary.
     """
     async with AsyncExitStack() as stack:
 
-        # fetch OpenAPI spec
-        async with httpx.AsyncClient(base_url=settings.mcp.openapi_base_url) as client:
-            resp = await client.get(settings.mcp.openapi_path)
-            resp.raise_for_status()
-            openapi_spec = resp.json()
+        # fetch OpenAPI spec, and retry if the API server takes a few seconds to start
 
-            # create FastMCP instance
+        async with httpx.AsyncClient(base_url=settings.mcp.openapi_base_url) as client:
+            retries = 0
+            openapi_spec: dict | None = None
+
+            while True:
+                try:
+                    resp = await client.get(settings.mcp.openapi_path)
+                    openapi_spec = resp.json()
+                    break
+                except Exception as exc:
+                    retries += 1
+                    logger.error(
+                        f"OpenAPI fetch attempt {retries}: {exc}", exc_info=True
+                    )
+                    await asyncio.sleep(1)
+                    if retries >= settings.mcp.max_retries:
+                        logger.error(
+                            "Max retries reached! Failed to fetch OpenAPI spec."
+                        )
+                        raise
+
+            # create FastMCP instance, but only if the spec is valid
+            assert isinstance(openapi_spec, dict)
             mcp = FastMCP.from_openapi(
                 openapi_spec=openapi_spec,
                 client=client,
