@@ -46,7 +46,6 @@
       ],
       "cwd": "${workspaceFolder}",
       "env": {
-        //"PYTHONASYNCIODEBUG": "1",
         "APP_CONFIG_FILES": "nmtfast-config-default.yaml,nmtfast-config-local.yaml",
       }
     },
