@@ -5,6 +5,7 @@
 """Main entrypoint for FastMCP instance."""
 
 import logging
+import os
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import AsyncGenerator
 
@@ -64,5 +65,10 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # configure logging before app creation
 configure_logging(get_app_settings())
 
-# Main FastAPI app using MCP lifespan
-mcp_app = FastAPI(lifespan=mcp_lifespan)
+# NOTE: ROOT_PATH is the equivalent of "SCRIPT_NAME" in WSGI, and specifies
+#   a prefix that should be removed from  from route evaluation
+root_path = os.getenv("ROOT_PATH", "")
+print(f"Starting app with root_path='{root_path}'")
+
+# create a FastAPI app using MCP lifespan
+mcp_app = FastAPI(lifespan=mcp_lifespan, root_path=root_path)
