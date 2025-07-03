@@ -19,6 +19,9 @@ _term() {
 }
 trap _term TERM
 
+echo "Waiting for services to start..."
+sleep 5  # initial delay to allow services to start
+
 # monitor process health
 while sleep 5
 do
