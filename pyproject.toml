@@ -1,6 +1,6 @@
 [project]
 name = "app"
-version = "0.5.1"
+version = "0.5.2"
 description = "The reference design for \"nmt\" (not-mt) FastAPI projects."
 authors = [
     {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"},

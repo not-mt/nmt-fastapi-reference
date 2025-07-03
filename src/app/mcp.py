@@ -56,7 +56,7 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 except Exception as exc:
                     retries += 1
                     logger.error(
-                        f"OpenAPI fetch attempt {retries}: {exc}", exc_info=True
+                        f"OpenAPI fetch attempt {retries}: {type(exc).__name__} {exc}"
                     )
                     await asyncio.sleep(1)
                     if retries >= settings.mcp.max_retries:
