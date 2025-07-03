@@ -56,7 +56,9 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 except Exception as exc:
                     retries += 1
                     logger.error(
-                        f"OpenAPI fetch attempt {retries}: {type(exc).__name__} {exc}"
+                        f"OpenAPI fetch attempt {retries} for {client.base_url}"
+                        f"{settings.mcp.openapi_path} resulted in "
+                        f"{exc.__class__}: {exc}"
                     )
                     await asyncio.sleep(1)
                     if retries >= settings.mcp.max_retries:
@@ -74,12 +76,12 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
 
             # create FastMCP ASGI app and attach its lifespan
-            mcp_app = mcp.http_app(path="/")
-            await stack.enter_async_context(mcp_app.lifespan(app))
+            mcp_inner_app = mcp.http_app(path="/")
+            await stack.enter_async_context(mcp_inner_app.lifespan(app))
             logger.info("Initialized MCP lifespan")
 
             # mount FastMCP app
-            app.mount(settings.mcp.mcp_mount_path, mcp_app)
+            app.mount(settings.mcp.mcp_mount_path, mcp_inner_app)
             logger.info(f"Mounted MCP app at {settings.mcp.mcp_mount_path}")
 
             yield
@@ -91,7 +93,7 @@ configure_logging(get_app_settings())
 # NOTE: ROOT_PATH is the equivalent of "SCRIPT_NAME" in WSGI, and specifies
 #   a prefix that should be removed from  from route evaluation
 root_path = os.getenv("ROOT_PATH", "")
-print(f"Starting app with root_path='{root_path}'")
+print(f"Starting mcp_app with root_path='{root_path}'")
 
 # create a FastAPI app using MCP lifespan
 mcp_app = FastAPI(lifespan=mcp_lifespan, root_path=root_path)
