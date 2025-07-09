@@ -201,12 +201,15 @@ print(f"Starting app with root_path='{root_path}'")
 
 # Initialize FastAPI application and middleware
 # NOTE: duration middleware must be first to log req IDs correctly
+settings: AppSettings = get_app_settings()
 app: FastAPI = FastAPI(
     title="nmt-fastapi-reference",
     lifespan=lifespan,
     root_path=root_path,
 )
-app.add_middleware(RequestDurationMiddleware)
+app.add_middleware(
+    RequestDurationMiddleware, remote_headers=settings.logging.client_host_headers
+)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -221,7 +224,7 @@ app.add_middleware(
 object.__setattr__(app, "openapi", custom_openapi(app))
 
 # configure logging immediately after app creation
-configure_logging(get_app_settings())
+configure_logging(settings)
 
 # finalize application setup
 register_routers()
