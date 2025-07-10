@@ -20,14 +20,14 @@ _term() {
 trap _term TERM
 
 echo "Waiting for services to start..."
-sleep 5  # initial delay to allow services to start
+sleep 3  # initial delay to allow services to start
 
 # monitor process health
-while sleep 5
+while sleep 3
 do
-    if ! supervisorctl status uvicorn | grep -q RUNNING
+    if ! supervisorctl status fastapi | grep -q RUNNING
     then
-        echo "uvicorn process crashed"
+        echo "fastapi process crashed"
         break
     fi
 
