@@ -6,6 +6,9 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        LIBRARY_BRANCH: 'main'  # adjust if testing changes in library
+    image: nmt-fastapi-reference:latest
     ports:
       - 8080:8080
     volumes:

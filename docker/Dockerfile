@@ -4,11 +4,14 @@
 
 FROM ubuntu:24.04 AS lib-builder
 
+# NOTE: this allows building the application with a specific library version
+ARG LIBRARY_BRANCH=main
+
 WORKDIR /build
 
 RUN apt-get update && \
-    apt-get -y install git python3-venv && \
-    git clone \
+    apt-get -y install git python3-venv
+RUN git clone -b $LIBRARY_BRANCH \
         https://github.com/not-mt/nmt-fastapi-library.git \
         /build
 

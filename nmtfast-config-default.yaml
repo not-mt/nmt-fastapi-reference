@@ -92,6 +92,11 @@ logging:
       level: INFO
     "app.services.v1.health":
       level: INFO
+  # NOTE: these determine what will be logged as the client IP address; the
+  #   first header that matches will be used, so order matters!
+  client_host_headers: []
+    #- X-Real-IP
+    #- X-Forwarded-For
 
 tasks:
   name: nmt-fastapi-reference
