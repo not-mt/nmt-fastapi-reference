@@ -199,7 +199,7 @@ async def widget_zap_get_task(
     widget_id: Annotated[
         int,
         Path(
-            description="The ID of the widget to retrieve.",
+            description="The ID of the widget to get zap task for.",
             gt=0,
         ),
     ],
