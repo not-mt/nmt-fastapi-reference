@@ -5,8 +5,9 @@
 """This module defines API endpoints for managing gadgets."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, Path, status
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
@@ -64,7 +65,25 @@ def get_gadget_service(
     description="Create a gadget",  # Override the docstring in Swagger UI
 )
 async def gadget_create(
-    gadget: GadgetCreate,
+    gadget: Annotated[
+        GadgetCreate,
+        Body(
+            openapi_examples={
+                "normal": {
+                    "summary": "Create a gadget",
+                    "description": (
+                        "A **normal** gadget that is created successfully."
+                    ),
+                    "value": {
+                        "name": "gadget-123",
+                        "height": "15cm",
+                        "mass": "0.8kg",
+                        "force": 1,
+                    },
+                },
+            },
+        ),
+    ],
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetRead:
     """
@@ -89,7 +108,10 @@ async def gadget_create(
     description="View (read) a gadget",  # Override the docstring in Swagger UI
 )
 async def gadget_get_by_id(
-    gadget_id: str,
+    gadget_id: Annotated[
+        str,
+        Path(description="The ID of the gadget to retrieve."),
+    ],
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetRead:
     """
@@ -115,8 +137,26 @@ async def gadget_get_by_id(
     description="Zap a gadget",  # Override the docstring in Swagger UI
 )
 async def gadget_zap(
-    gadget_id: str,
-    payload: GadgetZap,
+    gadget_id: Annotated[
+        str,
+        Path(description="The ID of the gadget to zap."),
+    ],
+    payload: Annotated[
+        GadgetZap,
+        Body(
+            openapi_examples={
+                "normal": {
+                    "summary": "Zap a gadget",
+                    "description": (
+                        "A task is created to zap the gadget for `duration` seconds."
+                    ),
+                    "value": {
+                        "duration": 10,
+                    },
+                },
+            },
+        ),
+    ],
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetZapTask:
     """
@@ -142,8 +182,14 @@ async def gadget_zap(
     description="View async task status",  # Override the docstring in Swagger UI
 )
 async def gadget_zap_get_task(
-    gadget_id: str,
-    task_uuid: str,
+    gadget_id: Annotated[
+        str,
+        Path(description="The ID of the gadget to retrieve."),
+    ],
+    task_uuid: Annotated[
+        str,
+        Path(description="The UUID of the async zap task."),
+    ],
     gadget_service: GadgetService = Depends(get_gadget_service),
 ) -> GadgetZapTask:
     """
