@@ -5,8 +5,9 @@
 """This module defines API endpoints for managing widgets via upsteam API."""
 
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Body, Depends, Path, status
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.repositories.widgets.v1.api import WidgetApiRepository
 from nmtfast.repositories.widgets.v1.schemas import (
@@ -68,7 +69,25 @@ def get_widget_service(
     description="Create an API widget",  # Override the docstring in Swagger UI
 )
 async def widget_api_create(
-    widget: WidgetCreate,
+    widget: Annotated[
+        WidgetCreate,
+        Body(
+            openapi_examples={
+                "normal": {
+                    "summary": "Create a widget",
+                    "description": (
+                        "A **normal** widget that is created successfully."
+                    ),
+                    "value": {
+                        "name": "widget-432",
+                        "height": "30cm",
+                        "mass": "1.2kg",
+                        "force": 1,
+                    },
+                },
+            },
+        ),
+    ],
     widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetRead:
     """
@@ -96,7 +115,13 @@ async def widget_api_create(
     description="View (read) an API widget",  # Override the docstring in Swagger UI
 )
 async def widget_api_get_by_id(
-    widget_id: int,
+    widget_id: Annotated[
+        int,
+        Path(
+            description="The ID of the widget to retrieve.",
+            gt=0,
+        ),
+    ],
     widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetRead:
     """
@@ -124,8 +149,29 @@ async def widget_api_get_by_id(
     description="Zap an API widget",  # Override the docstring in Swagger UI
 )
 async def widget_api_zap(
-    widget_id: int,
-    payload: WidgetZap,
+    widget_id: Annotated[
+        int,
+        Path(
+            description="The ID of the widget to zap.",
+            gt=0,
+        ),
+    ],
+    payload: Annotated[
+        WidgetZap,
+        Body(
+            openapi_examples={
+                "normal": {
+                    "summary": "Zap a widget",
+                    "description": (
+                        "A task is created to zap the widget for `duration` seconds."
+                    ),
+                    "value": {
+                        "duration": 10,
+                    },
+                },
+            },
+        ),
+    ],
     widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetZapTask:
     """
@@ -155,8 +201,17 @@ async def widget_api_zap(
     description="View async API task status",  # Override the docstring in Swagger UI
 )
 async def widget_api_zap_get_task(
-    widget_id: int,
-    task_uuid: str,
+    widget_id: Annotated[
+        int,
+        Path(
+            description="The ID of the widget to get zap task for.",
+            gt=0,
+        ),
+    ],
+    task_uuid: Annotated[
+        str,
+        Path(description="The UUID of the async zap task."),
+    ],
     widget_service: WidgetApiService = Depends(get_widget_service),
 ) -> WidgetZapTask:
     """
