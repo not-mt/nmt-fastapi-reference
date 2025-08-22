@@ -38,7 +38,6 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     Raises:
         Exception: Raised if the OpenAPI spec cannot be fetched for any reason.
-        AssertionError: Raised if the fetched OpenAPI spec is not a valid dictionary.
     """
     async with AsyncExitStack() as stack:
 
