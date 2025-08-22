@@ -25,9 +25,6 @@ async def get_mongo_db(
 
     Returns:
         AsyncMongoDatabase: An async MongoDB client.
-
-    Raises:
-        AssertionError: If MongoDB client is not initialized.
     """
     assert async_client is not None, "async_client is not initialized"
 

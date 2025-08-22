@@ -40,8 +40,8 @@ async def get_sql_db(
         try:
             yield session
             await session.commit()
-        except Exception as exc:
+        except Exception:
             await session.rollback()
-            raise exc  # reraise the original exception
+            raise  # reraise the original exception
         finally:
             await session.close()
