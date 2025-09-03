@@ -82,9 +82,6 @@ class WidgetService:
 
         Returns:
             WidgetRead: The newly created widget as a Pydantic model.
-
-        Raises:
-            AssertionError: Raised if Kafka support is enabled and producer is None.
         """
         await self._is_authz(self.acls, "create")
         db_widget = await self.widget_repository.widget_create(input_widget)

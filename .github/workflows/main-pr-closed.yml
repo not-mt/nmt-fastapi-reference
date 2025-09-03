@@ -1,0 +1,70 @@
+name: Closed PRs (main)
+
+on:
+  # only run for closed PRs that have pushed to main
+  push:
+    branches:
+      - main
+
+jobs:
+  pre-commit-codecov:
+    runs-on: self-hosted
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - 3.12
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Poetry / pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            ~/.cache/pip
+          key: ${{ runner.os }}-poetry-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-${{ matrix.python-version }}-
+
+      - name: Install common dependencies
+        uses: ./.github/actions/install-deps
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package
+        run: |
+          poetry install
+
+      - name: Fix docstring_parser packages inside Poetry venv
+        uses: ./.github/actions/fix-docstring-parser
+
+      - name: Generate coverage and test reports
+        run: |
+          poetry run pytest \
+            --cov=app \
+            --cov-report term \
+            --cov-report=xml:coverage.xml \
+            --junitxml=junit.xml \
+            -o junit_family=legacy \
+            tests
+
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: true
+          # flags: unittests
+          verbose: true
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: junit.xml
+          fail_ci_if_error: true
+          verbose: true

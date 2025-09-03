@@ -92,9 +92,6 @@ def upstream_api_exception_handler(request: Request, exc: Exception) -> JSONResp
         request: The incoming HTTP request.
         exc: The raised exception.
 
-    Raises:
-        AssertionError: Raised if passed exception not UpstreamApiException.
-
     Returns:
         JSONResponse: A response with details about an upstream API failure.
     """
