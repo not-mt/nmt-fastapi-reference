@@ -1,5 +1,7 @@
 # nmt-fastapi-reference
 
+[![codecov](https://codecov.io/github/not-mt/nmt-fastapi-reference/branch/main/graph/badge.svg)](https://codecov.io/github/not-mt/nmt-fastapi-reference)
+
 A FastAPI-based microservice leveraging the `nmtfast` Python package for structured access control, logging, and caching.
 
 ## Features
