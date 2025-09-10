@@ -74,6 +74,7 @@ class McpSettings(BaseModel):
         openapi_path: Path to the OpenAPI specification.
         mcp_mount_path: Mount path for the MCP interface.
         max_retries: Maximum number of retries for fetching the OpenAPI spec.
+        stateless_http: Whether to use stateless or in-memory state/session tracking.
     """
 
     headers: dict[str, str] = {}
@@ -81,6 +82,7 @@ class McpSettings(BaseModel):
     openapi_path: str = "/openapi.json"
     mcp_mount_path: str = "/mcp"
     max_retries: int = 5
+    stateless_http: bool = True
 
 
 class KafkaSettings(BaseModel):

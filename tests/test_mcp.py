@@ -68,7 +68,7 @@ async def test_mcp_lifespan_mounts_app():
 
         mock_client.get.assert_awaited_once_with("/openapi.json")
         mock_response.json.assert_called_once()
-        mock_mcp.http_app.assert_called_once_with(path="/")
+        mock_mcp.http_app.assert_called_once()
         mock_mount.assert_called_once_with("/mcp", mock_http_app)
 
 

@@ -75,7 +75,14 @@ async def mcp_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
 
             # create FastMCP ASGI app and attach its lifespan
-            mcp_inner_app = mcp.http_app(path="/")
+            logger.debug(
+                "Creating MCP http_app with stateless_http="
+                f"{settings.mcp.stateless_http}"
+            )
+            mcp_inner_app = mcp.http_app(
+                path="/",
+                stateless_http=settings.mcp.stateless_http,
+            )
             await stack.enter_async_context(mcp_inner_app.lifespan(app))
             logger.info("Initialized MCP lifespan")
 
