@@ -6,16 +6,18 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WidgetBase(BaseModel):
     """Base schema for widgets."""
 
-    name: str
-    height: Optional[str] = None
-    mass: Optional[str] = None
-    force: Optional[int] = None
+    name: str = Field(..., description="Name of the widget.")
+    height: Optional[str] = Field(None, description="Height of the widget (optional).")
+    mass: Optional[str] = Field(None, description="Mass of the widget (optional).")
+    force: Optional[int] = Field(
+        None, description="Force applied to the widget (optional)."
+    )
 
 
 class WidgetCreate(WidgetBase):
@@ -27,21 +29,23 @@ class WidgetCreate(WidgetBase):
 class WidgetRead(WidgetBase):
     """Schema for reading a widget, including additional attributes."""
 
-    id: int
+    id: int = Field(..., description="Database ID of the widget.")
     model_config = ConfigDict(from_attributes=True)
 
 
 class WidgetZap(BaseModel):
     """Schema to initiate zap task on a widget."""
 
-    duration: int = 10
+    duration: int = Field(10, description="Duration of the zap in seconds.")
 
 
 class WidgetZapTask(BaseModel):
     """Base schema for widgets."""
 
-    uuid: str
-    state: str = "UNKNOWN"
-    id: int
-    duration: int
-    runtime: int
+    uuid: str = Field(..., description="UUID of the zap task.")
+    state: str = Field("UNKNOWN", description="Current state of the zap task.")
+    id: int = Field(..., description="ID of the widget associated with the task.")
+    duration: int = Field(
+        ..., description="Requested duration for the task in seconds."
+    )
+    runtime: int = Field(..., description="Runtime of the task in seconds.")
