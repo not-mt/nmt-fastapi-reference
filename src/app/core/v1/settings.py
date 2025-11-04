@@ -138,7 +138,7 @@ class AppSettings(BaseSettings):
     """Application settings model."""
 
     version: int = 1
-    app_name: str = "My FastAPI App"
+    app_name: str = "nmt-fastapi-reference"
     sqlalchemy: SqlAlchemySettings = SqlAlchemySettings()
     mongo: MongoSettings = MongoSettings()
     auth: AuthSettings = AuthSettings(
