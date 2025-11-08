@@ -14,6 +14,7 @@ import toml  # NOTE: support backwards compatibility <= Python 3.11
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.errors.v1.exceptions import UpstreamApiException
 from nmtfast.logging.v1.config import create_logging_config
 from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
@@ -25,6 +26,7 @@ from app.core.v1.kafka import create_kafka_consumers, create_kafka_producer
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
+    authorization_error_handler,
     generic_not_found_error_handler,
     index_out_of_range_error_handler,
     resource_not_found_error_handler,
@@ -150,6 +152,10 @@ def register_exception_handlers() -> None:
     app.add_exception_handler(
         UpstreamApiException,
         upstream_api_exception_handler,
+    )
+    app.add_exception_handler(
+        AuthorizationError,
+        authorization_error_handler,
     )
 
 

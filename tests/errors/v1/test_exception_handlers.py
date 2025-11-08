@@ -9,12 +9,14 @@ from unittest.mock import MagicMock
 
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
+from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.errors.v1.exceptions import (
     BaseUpstreamRepositoryException,
     UpstreamApiException,
 )
 
 from app.errors.v1.exception_handlers import (
+    authorization_error_handler,
     generic_not_found_error_handler,
     index_out_of_range_error_handler,
     resource_not_found_error_handler,
@@ -101,3 +103,16 @@ def test_upstream_api_exception_handler():
         "message": "Service unavailable",
         "request_id": "req-123",
     }
+
+
+def test_authorization_error_handler():
+    """
+    Test AuthorizationError handler.
+    """
+    request = MagicMock(spec=Request)
+    exc = AuthorizationError("Test authorization error")
+    response = authorization_error_handler(request, exc)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 403
+    assert json.loads(response.body) == {"message": "Test authorization error"}
