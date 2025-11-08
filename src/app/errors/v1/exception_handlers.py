@@ -105,3 +105,20 @@ def upstream_api_exception_handler(request: Request, exc: Exception) -> JSONResp
             "request_id": exc.req_id,
         },
     )
+
+
+def authorization_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """
+    Handle AuthorizationError exceptions.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The raised IndexError exception.
+
+    Returns:
+        JSONResponse: A 403 response indicating an authorization failure.
+    """
+    return JSONResponse(
+        status_code=403,
+        content={"message": f"{exc}"},
+    )

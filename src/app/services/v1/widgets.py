@@ -9,7 +9,6 @@ from typing import Optional
 
 from aiokafka import AIOKafkaProducer
 from nmtfast.auth.v1.acl import check_acl
-from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.middleware.v1.request_id import REQUEST_ID_CONTEXTVAR
 from nmtfast.tasks.v1.huey import (
@@ -66,12 +65,9 @@ class WidgetService:
         Args:
             acls: List of ACLs associated with this client
             permission: Required in order to complete the requested operation.
-
-        Raises:
-            AuthorizationError: API key / OAuth client is not authorized.
         """
-        if not await check_acl("widgets", acls, permission):
-            raise AuthorizationError(f"Not authorized to '{permission}'")
+        # NOTE: by default, check_acl now raises AuthorizationError on failure
+        await check_acl("widgets", acls, permission)
 
     async def widget_create(self, input_widget: WidgetCreate) -> WidgetRead:
         """
