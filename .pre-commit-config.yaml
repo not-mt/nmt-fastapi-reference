@@ -12,6 +12,13 @@ repos:
   - repo: local
     hooks:
       # --------------------
+      - id: gitlint
+        name: gitlint
+        entry: poetry run gitlint
+        language: system
+        args: ["--msg-filename"]
+        stages: [commit-msg]
+      # --------------------
       - id: black
         name: black
         entry: poetry run invoke black
