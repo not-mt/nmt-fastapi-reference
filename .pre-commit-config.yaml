@@ -7,8 +7,8 @@ repos:
       - id: trailing-whitespace
       - id: check-docstring-first
       - id: check-merge-conflict
-      - id: mixed-line-ending
-        args: [--fix=lf]
+      # - id: mixed-line-ending
+      #   args: [--fix=lf]
   - repo: local
     hooks:
       # --------------------
@@ -16,7 +16,7 @@ repos:
         name: gitlint
         entry: poetry run gitlint
         language: system
-        args: ["--msg-filename"]
+        args: ["--ignore", "body-is-missing", "--msg-filename"]
         stages: [commit-msg]
       # --------------------
       - id: cz-check
