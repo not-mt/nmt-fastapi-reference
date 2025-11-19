@@ -1,3 +1,9 @@
+## v1.2.3 (2025-11-19)
+
+### Fix
+
+- **ci**: simulate patch to trigger version bump x14 (#118) (cd2c0fe)
+
 ## v1.2.2 (2025-11-19)
 
 ### Fix
