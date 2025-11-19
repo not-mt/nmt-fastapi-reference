@@ -1,6 +1,6 @@
 [project]
 name = "app"
-version = "0.5.3"
+version = "1.0.0"
 description = "The reference design for \"nmt\" (not-mt) FastAPI projects."
 authors = [
     {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"},
@@ -151,6 +151,54 @@ exclude_lines = [
 [tool.ruff]
 cache-dir = ".local/ruff_cache"
 
+[tool.commitizen]
+name = "cz_customize"
+version = "1.0.0"
+tag_format = "v{version}"
+version_provider = "pep621"
+version_files = ["pyproject.toml"]
+
+[tool.commitizen.customize]
+types = [
+  { value = "feat",    description = "A new feature" },
+  { value = "fix",     description = "A bug fix" },
+  { value = "docs",    description = "Documentation changes" },
+  { value = "style",   description = "Code style changes" },
+  { value = "refactor",description = "Refactoring" },
+  { value = "perf",    description = "Performance improvements" },
+  { value = "test",    description = "Adding or updating tests" },
+  { value = "build",   description = "Build system or dependency changes" },
+  { value = "ci",      description = "CI pipeline changes" },
+  { value = "chore",   description = "Routine tasks and maintenance" },
+  { value = "revert",  description = "Revert a previous commit" }
+]
+
+# NOTE: scopes are OPTIONAL.
+# If you include this, make sure it is VALID TOML.
+scopes = [
+  "api",
+  "auth",
+  "db",
+  "ui",
+  "tasks",
+  "deploy",
+  "docs",
+  "tests",
+  "ci",
+  "deps",
+  "config",
+  "poetry",
+  "commitizen"
+]
+
+questions = [
+  { name = "type",       type = "list",    message = "Select the type of change:", choices = [ "feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert" ] },
+  { name = "scope",      type = "input",   message = "Scope (optional):" },
+  { name = "subject",    type = "input",   message = "Write a short description:" },
+  { name = "body",       type = "input",   message = "Longer description (optional):" },
+  { name = "footer",     type = "input",   message = "Footer (e.g. issue reference):" }
+]
+
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.1.0"
 pytest = "^8.3.4"
@@ -167,6 +215,8 @@ pyright = "^1.1.396"
 types-pyyaml = "^6.0.12.20241230"
 pytest-asyncio = "^0.25.3"
 asgi-lifespan = "^2.1.0"
+commitizen = "^4.10.0"
+gitlint = "^0.19.1"
 
 [tool.poetry.group.dev-nmtfast.dependencies]
 nmtfast = { path = "../nmt-fastapi-library", develop = true }
