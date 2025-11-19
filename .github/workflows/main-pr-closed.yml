@@ -9,9 +9,7 @@ on:
 jobs:
   bump_version:
     name: Bump version and create changelog with commitizen
-    # NOTE: not currently working on self-hosted
-    #runs-on: self-hosted
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ !(github.event.head_commit && startsWith(github.event.head_commit.message, 'bump:')) }}
     strategy:
       matrix:
