@@ -152,53 +152,19 @@ exclude_lines = [
 cache-dir = ".local/ruff_cache"
 
 [tool.commitizen]
-name = "cz_customize"
+# NOTE: we are not customizing for now, even though we would really like to
+#   support "chore" and "revert" CC types when using `cz commit`; however,
+#   it's a ton of extra boilerplate configuration, and learning how to do CC
+#   commits by hand with git commit isn't _that_ hard! We can revisit this
+#   later, if necessary.
+#name = "cz_customize"
+name = "cz_conventional_commits"
 version = "1.1.0"
-changelog_start_rev = "0d45b65cba46e311ffd6f3ba752ef7edb403b726"
-tag_format = "v{version}"
+changelog_start_rev = "v1.1.0"
+template = "changelog.j2"
+tag_format = "v$version"
 version_provider = "pep621"
 version_files = ["pyproject.toml"]
-
-[tool.commitizen.customize]
-types = [
-  { value = "feat",    description = "A new feature" },
-  { value = "fix",     description = "A bug fix" },
-  { value = "docs",    description = "Documentation changes" },
-  { value = "style",   description = "Code style changes" },
-  { value = "refactor",description = "Refactoring" },
-  { value = "perf",    description = "Performance improvements" },
-  { value = "test",    description = "Adding or updating tests" },
-  { value = "build",   description = "Build system or dependency changes" },
-  { value = "ci",      description = "CI pipeline changes" },
-  { value = "chore",   description = "Routine tasks and maintenance" },
-  { value = "revert",  description = "Revert a previous commit" }
-]
-
-# NOTE: scopes are OPTIONAL.
-# If you include this, make sure it is VALID TOML.
-scopes = [
-  "api",
-  "auth",
-  "db",
-  "ui",
-  "tasks",
-  "deploy",
-  "docs",
-  "tests",
-  "ci",
-  "deps",
-  "config",
-  "poetry",
-  "commitizen"
-]
-
-questions = [
-  { name = "type",       type = "list",    message = "Select the type of change:", choices = [ "feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert" ] },
-  { name = "scope",      type = "input",   message = "Scope (optional):" },
-  { name = "subject",    type = "input",   message = "Write a short description:" },
-  { name = "body",       type = "input",   message = "Longer description (optional):" },
-  { name = "footer",     type = "input",   message = "Footer (e.g. issue reference):" }
-]
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^4.1.0"
