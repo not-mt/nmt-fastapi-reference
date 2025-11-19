@@ -1,3 +1,9 @@
+## v1.3.0 (2025-11-19)
+
+### Feat
+
+- **ci**: add release to workflow actions (#120) (693411f)
+
 ## v1.2.3 (2025-11-19)
 
 ### Fix
