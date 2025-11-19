@@ -21,6 +21,8 @@ on:
 jobs:
   bump_version:
     name: Bump version and create changelog with commitizen
+    # NOTE: we are not using commitizen-action because it was a nightmare
+    #   to troubleshoot
     runs-on: self-hosted
     env:
       TARGET_REF: ${{ github.event.inputs.ref || github.ref_name || 'main' }}
@@ -67,6 +69,7 @@ jobs:
           cz --no-raise 3,21 bump --yes --changelog --dry-run
 
       - name: Bump version and push (if needed)
+        id: bump_and_push
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_bump == 'true' }}
         run: |
           # use commitizen to bump the version and generate changelog
@@ -83,12 +86,34 @@ jobs:
               echo "No changes to poetry.lock"
             fi
 
+            # NEW_TAG=$(git describe --tags --abbrev=0)
+            NEW_TAG=$(git tag --sort=v:refname | tail -1)
+            echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
             git push origin HEAD:refs/heads/${TARGET_REF}
             git push origin --tags || true
-            echo "Bumped to version $(git describe --tags --abbrev=0)"
+            # echo "Bumped to version $(git describe --tags --abbrev=0)"
+            echo "Bumped to version $NEW_TAG"
+
+            # generate release notes
+            cz changelog --dry-run $NEW_TAG | grep -v "## $NEW_TAG" > release_notes.md
           else
             echo "No version bump needed."
           fi
+
+      # - name: Extract release notes from CHANGELOG.md
+      #   run: |
+      #     TAG=${{ steps.bump_and_push.outputs.new_tag }}
+      #     awk -v tag="$TAG" 'BEGIN{found=0} $0 ~ ("^## .*" tag){found=1; next} /^## / && found{exit} found{print}' CHANGELOG.md > release_notes.md || echo "No release notes for $TAG" > release_notes.md
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.bump_and_push.outputs.new_tag }}
+          name: ${{ steps.bump_and_push.outputs.new_tag }}
+          bodyFile: release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   codecov:
     name: Upload coverage to Codecov
