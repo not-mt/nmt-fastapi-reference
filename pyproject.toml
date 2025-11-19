@@ -1,6 +1,6 @@
 [project]
 name = "app"
-version = "1.0.0"
+version = "1.1.0"
 description = "The reference design for \"nmt\" (not-mt) FastAPI projects."
 authors = [
     {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"},
@@ -23,7 +23,7 @@ dependencies = [
     "pymysql (>=1.1.1,<2.0.0)",
     "aiokafka (>=0.12.0,<0.13.0)",
     "toml (>=0.10.2,<0.11.0)",
-    "types-toml (>=0.10.8.20240310,<0.11.0.0)",
+    "types-toml (>=0.10.8.20240310,<0.11.1.0)",
     "fastmcp (>=2.9.2,<3.0.0)",
 ]
 packages = [
@@ -153,7 +153,7 @@ cache-dir = ".local/ruff_cache"
 
 [tool.commitizen]
 name = "cz_customize"
-version = "1.0.0"
+version = "1.1.0"
 changelog_start_rev = "0d45b65cba46e311ffd6f3ba752ef7edb403b726"
 tag_format = "v{version}"
 version_provider = "pep621"
