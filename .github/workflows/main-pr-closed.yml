@@ -71,7 +71,8 @@ jobs:
         run: |
           # use commitizen to bump the version and generate changelog
           git checkout "$TARGET_REF"
-          if cz --no-raise 3,21 bump --yes --changelog
+          #if cz --no-raise 3,21 bump --yes --changelog
+          if cz bump --yes --changelog
           then
             git push origin HEAD:refs/heads/${TARGET_REF}
             git push origin --tags || true
