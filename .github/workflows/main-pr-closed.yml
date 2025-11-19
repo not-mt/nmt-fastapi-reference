@@ -71,9 +71,18 @@ jobs:
         run: |
           # use commitizen to bump the version and generate changelog
           git checkout "$TARGET_REF"
-          #if cz --no-raise 3,21 bump --yes --changelog
+
           if cz bump --yes --changelog
           then
+            poetry lock
+            if git add poetry.lock
+            then
+              echo "Changes detected to poetry.lock, amending commit..."
+              git commit --amend --no-edit
+            else
+              echo "No changes to poetry.lock"
+            fi
+
             git push origin HEAD:refs/heads/${TARGET_REF}
             git push origin --tags || true
             echo "Bumped to version $(git describe --tags --abbrev=0)"
