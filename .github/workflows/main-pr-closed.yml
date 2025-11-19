@@ -46,21 +46,22 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Run cz bump
+      - name: Bump version (dry run)
         run: |
-          # Use commitizen to bump the version and generate changelog
-          cz --no-raise 21 bump --yes --changelog
+          cz --no-raise 21 bump --yes --changelog --dry-run
 
-      - name: Push changes (if any)
+      - name: Bump version and push (if needed)
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            git push origin HEAD
+          # use commitizen to bump the version and generate changelog
+          git checkout main
+          if cz --no-raise 21 bump --yes --changelog
+          then
+            git push origin HEAD:refs/heads/main
+            git push origin --tags || true
+            echo "Bumped to version $(git describe --tags --abbrev=0)"
+          else
+            echo "No version bump needed."
           fi
-          git push origin --tags || true
-
-      - name: Print Version
-        run: |
-          echo "Bumped to version $(git describe --tags --abbrev=0)"
 
   codecov:
     name: Upload coverage to Codecov
