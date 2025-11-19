@@ -22,6 +22,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          # NOTE: we need full history to let cz check find HEAD~1..HEAD
           fetch-depth: 0
           persist-credentials: true
 

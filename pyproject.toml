@@ -1,6 +1,6 @@
 [project]
 name = "app"
-version = "1.1.0"
+version = "1.2.0"
 description = "The reference design for \"nmt\" (not-mt) FastAPI projects."
 authors = [
     {name = "Alexander Haye", email = "ahayehaye@not-mt.dev"},
@@ -159,7 +159,7 @@ cache-dir = ".local/ruff_cache"
 #   later, if necessary.
 #name = "cz_customize"
 name = "cz_conventional_commits"
-version = "1.1.0"
+version = "1.2.0"
 changelog_start_rev = "942b70d0a0e75343c644e2d91abb80c7d11d15f9"
 template = "changelog.j2"
 tag_format = "v$version"
