@@ -5,11 +5,25 @@ on:
   push:
     branches:
       - main
+  # NOTE: this allows you to manually run this with a command like:
+  #   gh workflow run .github/workflows/main-pr-closed.yml --ref main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or ref to run against'
+        required: false
+        default: 'main'
+      run_bump:
+        description: 'Whether to run the bump job (true/false)'
+        required: false
+        default: 'true'
 
 jobs:
   bump_version:
     name: Bump version and create changelog with commitizen
     runs-on: self-hosted
+    env:
+      TARGET_REF: ${{ github.event.inputs.ref || github.ref_name || 'main' }}
     if: ${{ !(github.event.head_commit && startsWith(github.event.head_commit.message, 'bump:')) }}
     strategy:
       matrix:
@@ -26,6 +40,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: true
+          ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -47,16 +62,18 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Bump version (dry run)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_bump == 'true' }}
         run: |
           cz --no-raise 21 bump --yes --changelog --dry-run
 
       - name: Bump version and push (if needed)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_bump == 'true' }}
         run: |
           # use commitizen to bump the version and generate changelog
-          git checkout main
+          git checkout "$TARGET_REF"
           if cz --no-raise 21 bump --yes --changelog
           then
-            git push origin HEAD:refs/heads/main
+            git push origin HEAD:refs/heads/${TARGET_REF}
             git push origin --tags || true
             echo "Bumped to version $(git describe --tags --abbrev=0)"
           else
