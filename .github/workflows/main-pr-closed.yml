@@ -9,9 +9,7 @@ on:
 jobs:
   bump_version:
     name: Bump version and create changelog with commitizen
-    # NOTE: not currently working on self-hosted
-    #runs-on: self-hosted
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: ${{ !(github.event.head_commit && startsWith(github.event.head_commit.message, 'bump:')) }}
     strategy:
       matrix:
@@ -39,10 +37,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # - name: Install Commitizen
-      #   run: |
-      #     python -m pip install --upgrade pip
-      #     pip install commitizen
+      - name: Install commitizen (TODO fix version)
+        run: |
+          pip install commitizen==4.10.0
 
       - name: Configure Git
         run: |
