@@ -19,6 +19,13 @@ repos:
         args: ["--msg-filename"]
         stages: [commit-msg]
       # --------------------
+      - id: cz-check
+        name: cz-check
+        entry: poetry run cz check --rev-range HEAD~1..HEAD
+        pass_filenames: false
+        language: system
+        always_run: true
+      # --------------------
       - id: black
         name: black
         entry: poetry run invoke black
