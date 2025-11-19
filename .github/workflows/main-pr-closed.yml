@@ -8,10 +8,11 @@ on:
 
 jobs:
   bump_version:
-    if: "!startsWith(github.event.head_commit.message, 'bump:')"
+    name: Bump version and create changelog with commitizen
+    # NOTE: not currently working on self-hosted
     #runs-on: self-hosted
     runs-on: ubuntu-latest
-    name: "Bump version and create changelog with commitizen"
+    if: ${{ !(github.event.head_commit && startsWith(github.event.head_commit.message, 'bump:')) }}
     permissions:
       contents: write
       pull-requests: read
@@ -30,8 +31,10 @@ jobs:
       - name: Print Version
         run: echo "Bumped to version ${{ steps.cz.outputs.version }}"
 
-  pre-commit-codecov:
+  codecov:
+    name: Upload coverage to Codecov
     runs-on: self-hosted
+    if: ${{ !(github.event.head_commit && startsWith(github.event.head_commit.message, 'bump:')) }}
     strategy:
       fail-fast: false
       matrix:
