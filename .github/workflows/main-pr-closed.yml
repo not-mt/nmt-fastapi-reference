@@ -101,13 +101,10 @@ jobs:
             echo "No version bump needed."
           fi
 
-      # - name: Extract release notes from CHANGELOG.md
-      #   run: |
-      #     TAG=${{ steps.bump_and_push.outputs.new_tag }}
-      #     awk -v tag="$TAG" 'BEGIN{found=0} $0 ~ ("^## .*" tag){found=1; next} /^## / && found{exit} found{print}' CHANGELOG.md > release_notes.md || echo "No release notes for $TAG" > release_notes.md
-
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
+        # NOTE: only run if a new tag/version was created!
+        if: ${{ steps.bump_and_push.outputs.new_tag != '' }}
         with:
           tag: ${{ steps.bump_and_push.outputs.new_tag }}
           name: ${{ steps.bump_and_push.outputs.new_tag }}
