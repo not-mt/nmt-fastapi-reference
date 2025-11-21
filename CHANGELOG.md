@@ -1,3 +1,7 @@
+## v1.3.2 (2025-11-21)
+
+- **fix(deps)**: bump aiomysql to 0.3.0 (#126) (e8a59fe)
+
 ## v1.3.1 (2025-11-21)
 
 - **fix(deps)**: bump FastMCP to 2.13.0 (#124) (e80370a)
