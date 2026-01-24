@@ -1,3 +1,7 @@
+## v1.3.3 (2026-01-24)
+
+- **fix(deps)**: security updates 1/2026 (15c5e1f)
+
 ## v1.3.2 (2025-11-21)
 
 - **fix(deps)**: bump aiomysql to 0.3.0 (#126) (e8a59fe)
