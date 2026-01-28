@@ -90,7 +90,7 @@ logging:
       level: INFO
     "fastapi_mcp":
       level: INFO
-    "app.services.v1.health":
+    "app.layers.service.v1.health":
       level: INFO
   # NOTE: these determine what will be logged as the client IP address; the
   #   first header that matches will be used, so order matters!

@@ -15,8 +15,8 @@ from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
 from app.core.v1.mongo import with_huey_mongo_session
 from app.core.v1.tasks import huey_app
-from app.repositories.v1.gadgets import GadgetRepository
-from app.schemas.v1.gadgets import GadgetRead, GadgetZapTask
+from app.layers.repository.v1.gadgets import GadgetRepository
+from app.schemas.dto.v1.gadgets import GadgetRead, GadgetZapTask
 
 logger = logging.getLogger(__name__)
 

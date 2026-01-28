@@ -34,10 +34,10 @@ from app.errors.v1.exception_handlers import (
     upstream_api_exception_handler,
 )
 from app.errors.v1.exceptions import ResourceNotFoundError
-from app.routers.v1.gadgets import gadgets_router
-from app.routers.v1.health import health_router
-from app.routers.v1.upstream import widgets_api_router
-from app.routers.v1.widgets import widgets_router
+from app.layers.router.v1.gadgets import gadgets_router
+from app.layers.router.v1.health import health_router
+from app.layers.router.v1.upstream import widgets_api_router
+from app.layers.router.v1.widgets import widgets_router
 
 # load project metadata from pyproject.toml
 with open("pyproject.toml", "rb") as f_reader:
