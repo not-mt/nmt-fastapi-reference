@@ -1,3 +1,7 @@
+## v1.3.4 (2026-01-29)
+
+- restructure software layers (5414c7a)
+
 ## v1.3.3 (2026-01-24)
 
 - **fix(deps)**: security updates 1/2026 (15c5e1f)
