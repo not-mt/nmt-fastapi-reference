@@ -16,9 +16,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.v1.sqlalchemy import with_huey_db_session
 from app.core.v1.tasks import huey_app
-from app.models.v1.widgets import Widget
-from app.repositories.v1.widgets import WidgetRepository
-from app.schemas.v1.widgets import WidgetZapTask
+from app.layers.repository.v1.widgets import WidgetRepository
+from app.schemas.dto.v1.widgets import WidgetZapTask
+from app.schemas.orm.v1.widgets import Widget
 
 logger = logging.getLogger(__name__)
 

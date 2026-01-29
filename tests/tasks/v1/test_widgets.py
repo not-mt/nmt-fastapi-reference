@@ -10,8 +10,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors.v1.exceptions import ResourceNotFoundError
-from app.models.v1.widgets import Widget
-from app.schemas.v1.widgets import WidgetZapTask
+from app.schemas.dto.v1.widgets import WidgetZapTask
+from app.schemas.orm.v1.widgets import Widget
 from app.tasks.v1.widgets import (
     WidgetZapParams,
     _async_db_widget_zap,

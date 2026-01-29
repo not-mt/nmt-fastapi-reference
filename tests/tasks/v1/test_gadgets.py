@@ -10,7 +10,7 @@ import pytest
 from huey.api import Task as HueyTask
 from pymongo import AsyncMongoClient
 
-from app.schemas.v1.gadgets import GadgetRead, GadgetZapTask
+from app.schemas.dto.v1.gadgets import GadgetRead, GadgetZapTask
 from app.tasks.v1.gadgets import (
     GadgetZapParams,
     _async_logic_gadget_zap,
