@@ -1,3 +1,7 @@
+## v1.3.5 (2026-03-14)
+
+    - **fix(deps)**: security updates 3/2026 (2cf3c7e)
+
 ## v1.3.4 (2026-01-29)
 
 - **refactor**: restructure software layers (5414c7a)
