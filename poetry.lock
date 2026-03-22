@@ -2045,7 +2045,7 @@ files = [
 
 [[package]]
 name = "nmtfast"
-version = "1.1.2"
+version = "1.2.0"
 description = "Shared library for nmtfast apps"
 optional = false
 python-versions = ">=3.11,<4.0"
@@ -4131,4 +4131,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "4e2e45cbc44c209e329ccb7e31670e76ea5ec06e8f482398ed626e1a33e29092"
+content-hash = "c629d3ad17756248c5e78df1fb37f8206b90011cee38db640ead2a4b9614db76"

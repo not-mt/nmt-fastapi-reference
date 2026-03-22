@@ -1,3 +1,7 @@
+## v1.4.0 (2026-03-22)
+
+    - **feat**: add auth code support (f1279b4)
+
 ## v1.3.5 (2026-03-14)
 
     - **fix(deps)**: security updates 3/2026 (2cf3c7e)
