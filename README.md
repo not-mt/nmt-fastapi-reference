@@ -196,4 +196,4 @@ Contributions are welcome! Please submit a pull request or open an issue.
 
 This project is licensed under the [MIT License](LICENSE).
 
-Copyright (c) 2025 Alexander Haye
+Copyright (c) 2026 Alexander Haye
