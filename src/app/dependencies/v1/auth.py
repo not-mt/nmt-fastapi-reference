@@ -9,7 +9,7 @@ import logging
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from nmtfast.auth.v1.exceptions import AuthenticationError
-from nmtfast.auth.v1.oauth import OAuth2ClientCredentials
+from nmtfast.auth.v1.oauth import OAuth2AuthorizationCode, OAuth2ClientCredentials
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 
@@ -31,20 +31,31 @@ oauth2_scheme = OAuth2ClientCredentials(
     tokenUrl=get_app_settings().auth.swagger_token_url,
     auto_error=False,
 )
+oauth2_auth_code_scheme = OAuth2AuthorizationCode(
+    authorizationUrl=get_app_settings().auth.swagger_authorize_url or "",
+    tokenUrl=get_app_settings().auth.swagger_token_url,
+    auto_error=False,
+)
 
 
 async def authenticate_headers(
-    api_key: str = Security(api_key_header),
-    token: str = Security(oauth2_scheme),
+    api_key: str | None = Security(api_key_header),
+    token: str | None = Security(oauth2_scheme),
+    token_auth_code: str | None = Security(oauth2_auth_code_scheme),
     settings: AppSettings = Depends(get_app_settings),
     cache: AppCacheBase = Depends(get_cache),
 ) -> str:
     """
     Authenticate client headers, which might be a Bearer token or an API key.
 
+    Accepts Bearer tokens from either the client credentials scheme or the
+    authorization code scheme; both populate the same Authorization header.
+
     Args:
-        api_key: The API key from the request header.
-        token: The API key from the request header.
+        api_key: The API key from the X-API-Key request header.
+        token: The Bearer token extracted via the client credentials OAuth2 scheme.
+        token_auth_code: The Bearer token extracted via the authorization code
+            OAuth2 scheme.
         settings: The application settings.
         cache: An implementation of AppCacheBase for getting/setting cache keys.
 
@@ -52,10 +63,12 @@ async def authenticate_headers(
         str: A string indicating which authentication method was used.
 
     Raises:
-        HTTPException: If the API key is not valid.
+        HTTPException: If the credentials are not valid.
     """
+    bearer_token = token or token_auth_code
+
     # reject if both API key and token were provided
-    if api_key and token:
+    if api_key and bearer_token:
         raise HTTPException(
             status_code=403,
             detail=(
@@ -75,9 +88,9 @@ async def authenticate_headers(
         raise HTTPException(status_code=403, detail="API key authentication failed")
 
     # check token authentication (if provided)
-    if token:
+    if bearer_token:
         try:
-            acls = await process_bearer_token(token, settings, cache, "authn")
+            acls = await process_bearer_token(bearer_token, settings, cache, "authn")
             if acls:
                 return "Bearer token successfully authenticated."
         except AuthenticationError as exc:

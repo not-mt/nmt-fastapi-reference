@@ -10,6 +10,7 @@ mongo:
 
 auth:
   swagger_token_url: https://some.domain.tld/api/oidc/token
+  # swagger_authorize_url: https://some.domain.tld/api/oidc/authorization
   id_providers: {}
     # some_oidc_provider_here:
     #   type: jwks
@@ -30,6 +31,7 @@ auth:
       #   acls:
       #     - section_regex: '^widgets$'
       #       permissions: ['*', 'create']
+      #       memo: Full access to widgets
     api_keys: {}
       # some_key:
       #   contact: some.user@domain.tld
@@ -39,6 +41,7 @@ auth:
       #   acls:
       #     - section_regex: '^widgets$'
       #       permissions: ['*', 'create']
+      #       memo: Full access to widgets
   outgoing:
     clients: {}
       # some_outbound_api_client:
@@ -48,6 +51,24 @@ auth:
       #   grant_type: client_credentials
       #   client_id: some_outgoing_client_id_here
       #   client_secret: # stored in secrets
+
+  # web_auth:
+  #   provider: some_oidc_provider_here
+  #   client_id: my-web-client-id
+  #   client_secret: # stored in secrets
+  #   redirect_uri: http://localhost:8000/ui/v1/auth/callback
+  #   scopes:
+  #     - openid
+  #     - profile
+  #     - email
+  #     - groups
+  #   pkce_enabled: false
+  #   refresh_enabled: false
+  #   token_endpoint_auth_method: client_secret_basic
+  #   displayname_claims:
+  #     - preferred_username
+  #   userid_claims:
+  #     - sub
 
 discovery:
   mode: manual

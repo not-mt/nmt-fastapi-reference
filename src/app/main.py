@@ -14,6 +14,7 @@ import toml  # NOTE: support backwards compatibility <= Python 3.11
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from nmtfast.auth.v1.docs import register_swagger_ui
 from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.errors.v1.exceptions import UpstreamApiException
 from nmtfast.logging.v1.config import create_logging_config
@@ -101,6 +102,16 @@ def custom_openapi(app: FastAPI):
         # NOTE: set servers manually when using custom OpenAPI schema
         openapi_schema["servers"] = [{"url": app.root_path or "/"}]
 
+        # Strip the OAuth2AuthorizationCode scheme from the spec when
+        # swagger_authorize_url is not configured to avoid Swagger UI showing
+        # an authorization code flow entry with an empty authorization URL.
+        _settings = get_app_settings()
+        if not _settings.auth.swagger_authorize_url:
+            security_schemes = openapi_schema.get("components", {}).get(
+                "securitySchemes", {}
+            )
+            security_schemes.pop("OAuth2AuthorizationCode", None)
+
         app.openapi_schema = openapi_schema
 
         return app.openapi_schema
@@ -176,7 +187,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await create_api_clients()
 
     async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all)  # pragma: no cover
         logger.info("Database schema created (only if necessary)")
 
     logger.info("Starting Kafka consumers/producer (if any)...")
@@ -200,6 +211,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Lifespan ended")
 
 
+def build_swagger_ui_init_oauth(settings: AppSettings) -> dict:
+    """
+    Build the swagger_ui_init_oauth dict from application settings.
+
+    Args:
+        settings: The application settings.
+
+    Returns:
+        dict: OAuth init configuration for Swagger UI, or empty dict if
+            web_auth is not configured.
+    """
+    if settings.auth.web_auth:
+        return {
+            "clientId": settings.auth.web_auth.client_id,
+            "scopes": " ".join(settings.auth.web_auth.scopes),
+            "usePkceWithAuthorizationCodeGrant": True,
+        }
+    return {}
+
+
 # NOTE: ROOT_PATH is the equivalent of "SCRIPT_NAME" in WSGI, and specifies
 #   a prefix that should be removed from  from route evaluation
 root_path = os.getenv("ROOT_PATH", "")
@@ -208,10 +239,15 @@ print(f"Starting app with root_path='{root_path}'")
 # Initialize FastAPI application and middleware
 # NOTE: duration middleware must be first to log req IDs correctly
 settings: AppSettings = get_app_settings()
+
+_swagger_ui_init_oauth: dict = build_swagger_ui_init_oauth(settings)
+
 app: FastAPI = FastAPI(
     title="nmt-fastapi-reference",
     lifespan=lifespan,
     root_path=root_path,
+    docs_url=None,  # custom /docs endpoint defined below
+    swagger_ui_init_oauth=_swagger_ui_init_oauth or None,
 )
 app.add_middleware(
     RequestDurationMiddleware, remote_headers=settings.logging.client_host_headers
@@ -235,3 +271,4 @@ configure_logging(settings)
 # finalize application setup
 register_routers()
 register_exception_handlers()
+register_swagger_ui(app, hide_client_secret_for=["authorizationCode"])

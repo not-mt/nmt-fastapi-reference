@@ -11,11 +11,11 @@ import pytest
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from huey import RedisExpireHuey, SqliteHuey
-from nmtfast.settings.v1.schemas import TaskSettings
+from nmtfast.settings.v1.schemas import TaskSettings, WebAuthClientSettings
 
-from app.core.v1.settings import AppSettings, get_app_settings
+from app.core.v1.settings import AppSettings, AuthSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base
-from app.main import app, configure_logging, lifespan
+from app.main import app, build_swagger_ui_init_oauth, configure_logging, lifespan
 
 
 def test_task_settings_redis_backend() -> None:
@@ -175,3 +175,70 @@ async def test_lifespan_kafka_producer_none() -> None:
         mock_create_all.assert_called_once()
         # kafka_producer is None, so nothing to await
         mock_consumer_task.cancel.assert_called_once()
+
+
+def test_custom_openapi_with_swagger_authorize_url() -> None:
+    """
+    Test that custom_openapi() preserves OAuth2AuthorizationCode scheme
+    when swagger_authorize_url is configured.
+    """
+
+    from app.main import custom_openapi
+
+    test_settings = AppSettings(
+        auth=AuthSettings(
+            swagger_token_url="http://localhost/token",
+            swagger_authorize_url="http://localhost/authorize",
+            id_providers={},
+        ),
+    )
+
+    test_app = FastAPI()
+    test_app.openapi = custom_openapi(test_app)
+
+    with patch("app.main.get_app_settings", return_value=test_settings):
+        schema = test_app.openapi()
+
+    assert schema["info"]["title"] == "nmt-fastapi-reference"
+    assert test_app.openapi_schema is schema
+
+
+def test_build_swagger_ui_init_oauth_with_web_auth() -> None:
+    """
+    Test that build_swagger_ui_init_oauth returns correct config when web_auth
+    is configured.
+    """
+    web_auth = WebAuthClientSettings(
+        provider="test-provider",
+        client_id="test-client-id",
+        client_secret="test-secret",
+        redirect_uri="http://localhost/callback",
+        scopes=["openid", "profile"],
+    )
+    test_settings = AppSettings(
+        auth=AuthSettings(
+            swagger_token_url="http://localhost/token",
+            id_providers={},
+            web_auth=web_auth,
+        ),
+    )
+
+    result = build_swagger_ui_init_oauth(test_settings)
+
+    assert result == {
+        "clientId": "test-client-id",
+        "scopes": "openid profile",
+        "usePkceWithAuthorizationCodeGrant": True,
+    }
+
+
+def test_build_swagger_ui_init_oauth_without_web_auth() -> None:
+    """
+    Test that build_swagger_ui_init_oauth returns empty dict when web_auth
+    is not configured.
+    """
+    test_settings = AppSettings()
+
+    result = build_swagger_ui_init_oauth(test_settings)
+
+    assert result == {}

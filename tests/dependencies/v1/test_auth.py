@@ -31,6 +31,7 @@ async def test_authenticate_headers_both_credentials_fail(mock_settings, mock_ca
         await authenticate_headers(
             api_key="test-key",
             token="test-token",
+            token_auth_code=None,
             settings=mock_settings,
             cache=mock_cache,
         )
@@ -53,7 +54,11 @@ async def test_authenticate_headers_api_key_success(mock_settings, mock_cache):
         ),
     ):
         result = await authenticate_headers(
-            api_key="valid-key", token=None, settings=mock_settings, cache=mock_cache
+            api_key="valid-key",
+            token=None,
+            token_auth_code=None,
+            settings=mock_settings,
+            cache=mock_cache,
         )
         assert "API key" in result
 
@@ -71,6 +76,7 @@ async def test_authenticate_headers_api_key_failure(mock_settings, mock_cache):
             await authenticate_headers(
                 api_key="invalid-key",
                 token=None,
+                token_auth_code=None,
                 settings=mock_settings,
                 cache=mock_cache,
             )
@@ -92,6 +98,7 @@ async def test_authenticate_headers_api_key_no_acls(mock_settings, mock_cache):
             await authenticate_headers(
                 api_key="no-acls-key",
                 token=None,
+                token_auth_code=None,
                 settings=mock_settings,
                 cache=mock_cache,
             )
@@ -112,6 +119,7 @@ async def test_authenticate_headers_token_success(mock_settings, mock_cache):
         result = await authenticate_headers(
             api_key=None,
             token="valid.token.here",
+            token_auth_code=None,
             settings=mock_settings,
             cache=mock_cache,
         )
@@ -131,6 +139,7 @@ async def test_authenticate_headers_token_failure(mock_settings, mock_cache):
             await authenticate_headers(
                 api_key=None,
                 token="invalid.token",
+                token_auth_code=None,
                 settings=mock_settings,
                 cache=mock_cache,
             )
@@ -145,7 +154,11 @@ async def test_authenticate_headers_no_credentials(mock_settings, mock_cache):
     """
     with pytest.raises(HTTPException) as exc:
         await authenticate_headers(
-            api_key=None, token=None, settings=mock_settings, cache=mock_cache
+            api_key=None,
+            token=None,
+            token_auth_code=None,
+            settings=mock_settings,
+            cache=mock_cache,
         )
 
     assert exc.value.status_code == 403
@@ -301,11 +314,53 @@ async def test_authenticate_headers_token_no_acls(mock_settings, mock_cache):
             await authenticate_headers(
                 api_key=None,
                 token="valid.but.empty.acls",
+                token_auth_code=None,
                 settings=mock_settings,
                 cache=mock_cache,
             )
 
         assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_authenticate_headers_auth_code_token_success(mock_settings, mock_cache):
+    """
+    Test successful authentication using the authorization code scheme token.
+    """
+    with patch(
+        "app.dependencies.v1.auth.process_bearer_token",
+        new=AsyncMock(
+            return_value=[SectionACL(section_regex=".*", permissions=["*"])],
+        ),
+    ):
+        result = await authenticate_headers(
+            api_key=None,
+            token=None,
+            token_auth_code="valid.auth.code.token",
+            settings=mock_settings,
+            cache=mock_cache,
+        )
+        assert "Bearer token" in result
+
+
+@pytest.mark.asyncio
+async def test_authenticate_headers_api_key_and_auth_code_token_fail(
+    mock_settings, mock_cache
+):
+    """
+    Test mutual exclusion of API key and authorization code Bearer token.
+    """
+    with pytest.raises(HTTPException) as exc:
+        await authenticate_headers(
+            api_key="test-key",
+            token=None,
+            token_auth_code="test.auth.code.token",
+            settings=mock_settings,
+            cache=mock_cache,
+        )
+
+    assert exc.value.status_code == 403
+    assert "mutually exclusive" in exc.value.detail
 
 
 @pytest.mark.asyncio
