@@ -21,7 +21,6 @@ from nmtfast.logging.v1.config import create_logging_config
 from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
 from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 
-from app.core.v1.discovery import create_api_clients
 from app.core.v1.health import set_app_not_ready, set_app_ready
 from app.core.v1.kafka import create_kafka_consumers, create_kafka_producer
 from app.core.v1.settings import AppSettings, get_app_settings
@@ -182,9 +181,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     logger: logging.Logger = logging.getLogger(__name__)
     logger.info("Lifespan started")
-
-    logger.info("Initializing API Clients (if any)...")
-    await create_api_clients()
 
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)  # pragma: no cover

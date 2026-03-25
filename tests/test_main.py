@@ -133,10 +133,6 @@ async def test_lifespan() -> None:
             mock_create_all,
         ),
         patch(
-            "app.core.v1.discovery.required_clients",
-            new=[],
-        ),
-        patch(
             "app.main.create_kafka_consumers",
             return_value=[mock_consumer_task_1, mock_consumer_task_2],
         ),
@@ -165,7 +161,6 @@ async def test_lifespan_kafka_producer_none() -> None:
 
     with (
         patch.object(Base.metadata, "create_all", mock_create_all),
-        patch("app.core.v1.discovery.required_clients", new=[]),
         patch("app.main.create_kafka_consumers", return_value=[mock_consumer_task]),
         patch("app.main.create_kafka_producer", return_value=None),
     ):
