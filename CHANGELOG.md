@@ -1,3 +1,7 @@
+## v1.4.1 (2026-03-25)
+
+    - **refactor**: lazy loading for api_clients (e7e42a7)
+
 ## v1.4.0 (2026-03-22)
 
     - **feat**: add auth code support (f1279b4)
