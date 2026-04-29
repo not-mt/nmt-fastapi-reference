@@ -22,6 +22,7 @@ from app.layers.repository.v1.gadgets import GadgetRepository
 from app.schemas.dto.v1.gadgets import (
     GadgetCreate,
     GadgetRead,
+    GadgetUpdate,
     GadgetZap,
     GadgetZapTask,
 )
@@ -93,6 +94,101 @@ class GadgetService:
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
 
         return GadgetRead.model_validate(db_gadget)
+
+    async def gadget_list(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "id",
+        sort_order: str = "asc",
+        search: str | None = None,
+    ) -> tuple[list[GadgetRead], int]:
+        """
+        Retrieve gadgets with pagination and sorting.
+
+        Args:
+            page: The page number to retrieve (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field name to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search term to filter results.
+
+        Returns:
+            tuple[list[GadgetRead], int]: A list of gadgets and the total count.
+        """
+        await self._is_authz(self.acls, "read")
+        db_gadgets, total = await self.gadget_repository.get_all(
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+        )
+
+        return [GadgetRead.model_validate(g) for g in db_gadgets], total
+
+    async def gadget_update(
+        self,
+        gadget_id: str,
+        data: GadgetUpdate,
+    ) -> GadgetRead:
+        """
+        Update an existing gadget.
+
+        Args:
+            gadget_id: The ID of the gadget to update.
+            data: The partial update data.
+
+        Returns:
+            GadgetRead: The updated gadget.
+        """
+        await self._is_authz(self.acls, "update")
+        db_gadget = await self.gadget_repository.update(gadget_id, data)
+
+        return GadgetRead.model_validate(db_gadget)
+
+    async def gadget_delete(self, gadget_id: str) -> None:
+        """
+        Delete a gadget by its ID.
+
+        Args:
+            gadget_id: The ID of the gadget to delete.
+        """
+        await self._is_authz(self.acls, "delete")
+        await self.gadget_repository.delete(gadget_id)
+
+    async def gadget_bulk_delete(self, ids: list[str]) -> int:
+        """
+        Delete multiple gadgets by their IDs.
+
+        Args:
+            ids: The list of gadget IDs to delete.
+
+        Returns:
+            int: The number of gadgets deleted.
+        """
+        await self._is_authz(self.acls, "delete")
+
+        return await self.gadget_repository.bulk_delete(ids)
+
+    async def gadget_bulk_update(
+        self,
+        ids: list[str],
+        data: GadgetUpdate,
+    ) -> int:
+        """
+        Update multiple gadgets by their IDs with the same partial data.
+
+        Args:
+            ids: The list of gadget IDs to update.
+            data: The partial update data to apply.
+
+        Returns:
+            int: The number of gadgets updated.
+        """
+        await self._is_authz(self.acls, "update")
+
+        return await self.gadget_repository.bulk_update(ids, data)
 
     async def gadget_zap(self, gadget_id: str, payload: GadgetZap) -> GadgetZapTask:
         """

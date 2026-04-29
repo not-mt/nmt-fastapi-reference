@@ -33,6 +33,33 @@ class GadgetRead(GadgetBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GadgetUpdate(BaseModel):
+    """
+    Schema for updating an existing gadget.
+
+    All fields are optional to support partial updates.
+    """
+
+    name: Optional[str] = Field(None, description="Name of the gadget.")
+    height: Optional[str] = Field(None, description="Height of the gadget (optional).")
+    mass: Optional[str] = Field(None, description="Mass of the gadget (optional).")
+    force: Optional[int] = Field(
+        None, description="Force applied to the gadget (optional)."
+    )
+
+
+class GadgetBulkUpdate(BaseModel):
+    """
+    Schema for bulk updating multiple gadgets.
+
+    Contains a list of gadget IDs and the partial update data
+    to apply to all of them.
+    """
+
+    ids: list[str] = Field(..., description="List of gadget IDs to update.")
+    updates: GadgetUpdate = Field(..., description="Partial update data to apply.")
+
+
 class GadgetZap(BaseModel):
     """Schema to initiate zap task on a gadget."""
 

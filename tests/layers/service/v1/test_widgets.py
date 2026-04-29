@@ -21,6 +21,7 @@ from app.layers.service.v1.widgets import WidgetService
 from app.schemas.dto.v1.widgets import (
     WidgetCreate,
     WidgetRead,
+    WidgetUpdate,
     WidgetZap,
     WidgetZapTask,
 )
@@ -458,3 +459,128 @@ async def test_widget_zap_by_uuid_not_found(
         )
 
     # raising the exception is all that needs to be tested
+
+
+@pytest.mark.asyncio
+async def test_widget_list(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_widget_read: WidgetRead,
+    mock_kafka: AIOKafkaProducer,
+):
+    """
+    Test successful listing of widgets.
+    """
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+    mock_widget_repository.get_all = AsyncMock(return_value=([mock_widget_read], 1))
+    result, total = await service.widget_list()
+
+    assert total == 1
+    assert len(result) == 1
+    assert isinstance(result[0], WidgetRead)
+
+
+@pytest.mark.asyncio
+async def test_widget_update(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_widget_read: WidgetRead,
+    mock_kafka: AIOKafkaProducer,
+):
+    """
+    Test successful update of a widget.
+    """
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+    mock_widget_repository.update = AsyncMock(return_value=mock_widget_read)
+    result = await service.widget_update(1, WidgetUpdate(name="Updated"))
+
+    assert isinstance(result, WidgetRead)
+    mock_widget_repository.update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_widget_delete(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_kafka: AIOKafkaProducer,
+):
+    """
+    Test successful deletion of a widget.
+    """
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+    mock_widget_repository.delete = AsyncMock(return_value=None)
+    await service.widget_delete(1)
+
+    mock_widget_repository.delete.assert_called_once_with(1)
+
+
+@pytest.mark.asyncio
+async def test_widget_bulk_delete(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_kafka: AIOKafkaProducer,
+):
+    """
+    Test successful bulk deletion of widgets.
+    """
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+    mock_widget_repository.bulk_delete = AsyncMock(return_value=2)
+    result = await service.widget_bulk_delete([1, 2])
+
+    assert result == 2
+
+
+@pytest.mark.asyncio
+async def test_widget_bulk_update(
+    mock_widget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_kafka: AIOKafkaProducer,
+):
+    """
+    Test successful bulk update of widgets.
+    """
+    service = WidgetService(
+        mock_widget_repository,
+        mock_allow_acls,
+        mock_settings,
+        mock_cache,
+        mock_kafka,
+    )
+    mock_widget_repository.bulk_update = AsyncMock(return_value=3)
+    result = await service.widget_bulk_update([1, 2, 3], WidgetUpdate(name="bulk"))
+
+    assert result == 3

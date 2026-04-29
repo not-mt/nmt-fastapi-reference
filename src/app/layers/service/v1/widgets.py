@@ -24,6 +24,7 @@ from app.layers.repository.v1.widgets import WidgetRepository
 from app.schemas.dto.v1.widgets import (
     WidgetCreate,
     WidgetRead,
+    WidgetUpdate,
     WidgetZap,
     WidgetZapTask,
 )
@@ -107,6 +108,101 @@ class WidgetService:
         db_widget = await self.widget_repository.get_by_id(widget_id)
 
         return WidgetRead.model_validate(db_widget)
+
+    async def widget_list(
+        self,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "id",
+        sort_order: str = "asc",
+        search: str | None = None,
+    ) -> tuple[list[WidgetRead], int]:
+        """
+        Retrieve widgets with pagination and sorting.
+
+        Args:
+            page: The page number to retrieve (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field name to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search term to filter results.
+
+        Returns:
+            tuple[list[WidgetRead], int]: A list of widgets and the total count.
+        """
+        await self._is_authz(self.acls, "read")
+        db_widgets, total = await self.widget_repository.get_all(
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+        )
+
+        return [WidgetRead.model_validate(w) for w in db_widgets], total
+
+    async def widget_update(
+        self,
+        widget_id: int,
+        data: WidgetUpdate,
+    ) -> WidgetRead:
+        """
+        Update an existing widget.
+
+        Args:
+            widget_id: The ID of the widget to update.
+            data: The partial update data.
+
+        Returns:
+            WidgetRead: The updated widget.
+        """
+        await self._is_authz(self.acls, "update")
+        db_widget = await self.widget_repository.update(widget_id, data)
+
+        return WidgetRead.model_validate(db_widget)
+
+    async def widget_delete(self, widget_id: int) -> None:
+        """
+        Delete a widget by its ID.
+
+        Args:
+            widget_id: The ID of the widget to delete.
+        """
+        await self._is_authz(self.acls, "delete")
+        await self.widget_repository.delete(widget_id)
+
+    async def widget_bulk_delete(self, ids: list[int]) -> int:
+        """
+        Delete multiple widgets by their IDs.
+
+        Args:
+            ids: The list of widget IDs to delete.
+
+        Returns:
+            int: The number of widgets deleted.
+        """
+        await self._is_authz(self.acls, "delete")
+
+        return await self.widget_repository.bulk_delete(ids)
+
+    async def widget_bulk_update(
+        self,
+        ids: list[int],
+        data: WidgetUpdate,
+    ) -> int:
+        """
+        Update multiple widgets by their IDs with the same partial data.
+
+        Args:
+            ids: The list of widget IDs to update.
+            data: The partial update data to apply.
+
+        Returns:
+            int: The number of widgets updated.
+        """
+        await self._is_authz(self.acls, "update")
+
+        return await self.widget_repository.bulk_update(ids, data)
 
     async def widget_zap(self, widget_id: int, payload: WidgetZap) -> WidgetZapTask:
         """
