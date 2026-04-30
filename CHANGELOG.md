@@ -1,3 +1,7 @@
+## v1.5.0 (2026-04-30)
+
+    - **feat**: add endpoints for updates, pagination (385d3f6)
+
 ## v1.4.1 (2026-03-25)
 
     - **refactor**: lazy loading for api_clients (e7e42a7)
