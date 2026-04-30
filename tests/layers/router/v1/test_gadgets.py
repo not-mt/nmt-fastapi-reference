@@ -352,3 +352,162 @@ async def test_gadget_zap_endpoint_status_not_found(
     # Reset the dependency override
     app.dependency_overrides.pop(get_gadget_service, None)
     app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_list_endpoint_success(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+    mock_gadget_read: GadgetRead,
+):
+    """
+    Unit test for the gadget_list endpoint.
+    """
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_list = AsyncMock(return_value=([mock_gadget_read], 1))
+
+    response = client.get(
+        "/v1/gadgets/",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "1"
+    assert len(response.json()) == 1
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_update_endpoint_success(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+    mock_gadget_read: GadgetRead,
+):
+    """
+    Unit test for the gadget_update endpoint.
+    """
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_update = AsyncMock(return_value=mock_gadget_read)
+
+    response = client.patch(
+        f"/v1/gadgets/{mock_gadget_read.id}",
+        headers={"X-API-Key": mock_api_key},
+        json={"name": "Updated"},
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == mock_gadget_read.id
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_delete_endpoint_success(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+):
+    """
+    Unit test for the gadget_delete endpoint.
+    """
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_delete = AsyncMock(return_value=None)
+
+    response = client.delete(
+        "/v1/gadgets/id-1",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 204
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_bulk_delete_endpoint_success(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+):
+    """
+    Unit test for the gadget_bulk_delete endpoint.
+    """
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_bulk_delete = AsyncMock(return_value=2)
+
+    response = client.post(
+        "/v1/gadgets/actions/bulk/delete",
+        headers={"X-API-Key": mock_api_key},
+        json=["g1", "g2"],
+    )
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2}
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_bulk_update_endpoint_success(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+):
+    """
+    Unit test for the gadget_bulk_update endpoint.
+    """
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_bulk_update = AsyncMock(return_value=2)
+
+    response = client.post(
+        "/v1/gadgets/actions/bulk/update",
+        headers={"X-API-Key": mock_api_key},
+        json={"ids": ["g1", "g2"], "updates": {"name": "bulk"}},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"updated": 2}
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+    # Reset the dependency override
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)

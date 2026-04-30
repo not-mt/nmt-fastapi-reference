@@ -33,6 +33,33 @@ class WidgetRead(WidgetBase):
     model_config = ConfigDict(from_attributes=True)
 
 
+class WidgetUpdate(BaseModel):
+    """
+    Schema for updating an existing widget.
+
+    All fields are optional to support partial updates.
+    """
+
+    name: Optional[str] = Field(None, description="Name of the widget.")
+    height: Optional[str] = Field(None, description="Height of the widget (optional).")
+    mass: Optional[str] = Field(None, description="Mass of the widget (optional).")
+    force: Optional[int] = Field(
+        None, description="Force applied to the widget (optional)."
+    )
+
+
+class WidgetBulkUpdate(BaseModel):
+    """
+    Schema for bulk updating multiple widgets.
+
+    Contains a list of widget IDs and the partial update data
+    to apply to all of them.
+    """
+
+    ids: list[int] = Field(..., description="List of widget IDs to update.")
+    updates: WidgetUpdate = Field(..., description="Partial update data to apply.")
+
+
 class WidgetZap(BaseModel):
     """Schema to initiate zap task on a widget."""
 

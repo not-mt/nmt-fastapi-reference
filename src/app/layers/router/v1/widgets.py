@@ -8,7 +8,8 @@ import logging
 from typing import Annotated, Optional
 
 from aiokafka import AIOKafkaProducer
-from fastapi import APIRouter, Body, Depends, Path, status
+from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi.responses import JSONResponse
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.settings.v1.schemas import SectionACL
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,8 +23,10 @@ from app.dependencies.v1.sqlalchemy import get_sql_db
 from app.layers.repository.v1.widgets import WidgetRepository
 from app.layers.service.v1.widgets import WidgetService
 from app.schemas.dto.v1.widgets import (
+    WidgetBulkUpdate,
     WidgetCreate,
     WidgetRead,
+    WidgetUpdate,
     WidgetZap,
     WidgetZapTask,
 )
@@ -106,6 +109,53 @@ async def widget_create(
 
 
 @widgets_router.get(
+    path="",
+    response_model=list[WidgetRead],
+    status_code=status.HTTP_200_OK,
+    summary="List all widgets",
+    description="List all widgets",
+    operation_id="list_widgets",
+)
+async def widget_list(
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=5000, description="Items per page")] = 10,
+    sort_by: Annotated[str, Query(description="Field to sort by")] = "id",
+    sort_order: Annotated[
+        str, Query(pattern="^(asc|desc)$", description="Sort direction")
+    ] = "asc",
+    search: Annotated[str | None, Query(description="Search filter")] = None,
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> JSONResponse:
+    """
+    List all widgets with pagination and sorting.
+
+    Args:
+        page: The page number (1-indexed).
+        page_size: The number of items per page.
+        sort_by: The field to sort by.
+        sort_order: The sort direction ('asc' or 'desc').
+        search: Optional search filter string.
+        widget_service: The widget service instance.
+
+    Returns:
+        JSONResponse: A JSON list of widgets with X-Total-Count header.
+    """
+    logger.info("Listing all widgets")
+    widgets, total = await widget_service.widget_list(
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search=search,
+    )
+    content = [w.model_dump(mode="json") for w in widgets]
+    return JSONResponse(
+        content=content,
+        headers={"X-Total-Count": str(total)},
+    )
+
+
+@widgets_router.get(
     "/{widget_id}",
     response_model=WidgetRead,
     status_code=status.HTTP_200_OK,
@@ -135,6 +185,136 @@ async def widget_get_by_id(
     """
     logger.info(f"Attempting to find widget {widget_id}")
     return await widget_service.widget_get_by_id(widget_id)
+
+
+@widgets_router.patch(
+    "/{widget_id}",
+    response_model=WidgetRead,
+    status_code=status.HTTP_200_OK,
+    summary="Update a widget",
+    description="Update a widget",
+    operation_id="update_widget",
+)
+async def widget_update(
+    widget_id: Annotated[
+        int,
+        Path(
+            description="The ID of the widget to update.",
+            gt=0,
+        ),
+    ],
+    widget: Annotated[
+        WidgetUpdate,
+        Body(
+            openapi_examples={
+                "normal": {
+                    "summary": "Update a widget",
+                    "description": "Update one or more fields on an existing widget.",
+                    "value": {
+                        "name": "widget-432-updated",
+                        "force": 5,
+                    },
+                },
+            },
+        ),
+    ],
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> WidgetRead:
+    """
+    Update an existing widget.
+
+    Args:
+        widget_id: The ID of the widget to update.
+        widget: The partial update data.
+        widget_service: The widget service instance.
+
+    Returns:
+        WidgetRead: The updated widget data.
+    """
+    logger.info(f"Attempting to update widget {widget_id}: {widget}")
+    return await widget_service.widget_update(widget_id, widget)
+
+
+@widgets_router.delete(
+    "/{widget_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a widget",
+    description="Delete a widget",
+    operation_id="delete_widget",
+)
+async def widget_delete(
+    widget_id: Annotated[
+        int,
+        Path(
+            description="The ID of the widget to delete.",
+            gt=0,
+        ),
+    ],
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> None:
+    """
+    Delete a widget by its ID.
+
+    Args:
+        widget_id: The ID of the widget to delete.
+        widget_service: The widget service instance.
+    """
+    logger.info(f"Attempting to delete widget {widget_id}")
+    await widget_service.widget_delete(widget_id)
+
+
+@widgets_router.post(
+    "/actions/bulk/delete",
+    status_code=status.HTTP_200_OK,
+    summary="Bulk delete widgets",
+    description="Delete multiple widgets by their IDs",
+    operation_id="bulk_delete_widgets",
+)
+async def widget_bulk_delete(
+    ids: Annotated[list[int], Body(embed=False)],
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> dict[str, int]:
+    """
+    Delete multiple widgets by their IDs.
+
+    Args:
+        ids: The list of widget IDs to delete.
+        widget_service: The widget service instance.
+
+    Returns:
+        dict[str, int]: The number of widgets deleted.
+    """
+    logger.info(f"Attempting to bulk delete widgets: {ids}")
+    deleted = await widget_service.widget_bulk_delete(ids)
+
+    return {"deleted": deleted}
+
+
+@widgets_router.post(
+    "/actions/bulk/update",
+    status_code=status.HTTP_200_OK,
+    summary="Bulk update widgets",
+    description="Update multiple widgets by their IDs with the same data",
+    operation_id="bulk_update_widgets",
+)
+async def widget_bulk_update(
+    payload: Annotated[WidgetBulkUpdate, Body()],
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> dict[str, int]:
+    """
+    Update multiple widgets by their IDs.
+
+    Args:
+        payload: The bulk update payload containing IDs and update data.
+        widget_service: The widget service instance.
+
+    Returns:
+        dict[str, int]: The number of widgets updated.
+    """
+    logger.info(f"Attempting to bulk update widgets {payload.ids}: {payload.updates}")
+    updated = await widget_service.widget_bulk_update(payload.ids, payload.updates)
+
+    return {"updated": updated}
 
 
 @widgets_router.post(

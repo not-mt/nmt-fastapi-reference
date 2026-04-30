@@ -19,6 +19,7 @@ from app.layers.service.v1.gadgets import GadgetService
 from app.schemas.dto.v1.gadgets import (
     GadgetCreate,
     GadgetRead,
+    GadgetUpdate,
     GadgetZap,
     GadgetZapTask,
 )
@@ -310,3 +311,105 @@ async def test_gadget_zap_by_uuid_not_found(
         )
 
     # raising the exception is all that needs to be tested
+
+
+@pytest.mark.asyncio
+async def test_gadget_list(
+    mock_gadget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_gadget_read: GadgetRead,
+):
+    """
+    Test successful listing of gadgets.
+    """
+    service = GadgetService(
+        mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+    mock_gadget_repository.get_all = AsyncMock(return_value=([mock_gadget_read], 1))
+    result, total = await service.gadget_list()
+
+    assert total == 1
+    assert len(result) == 1
+    assert isinstance(result[0], GadgetRead)
+
+
+@pytest.mark.asyncio
+async def test_gadget_update(
+    mock_gadget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+    mock_gadget_read: GadgetRead,
+):
+    """
+    Test successful update of a gadget.
+    """
+    service = GadgetService(
+        mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+    mock_gadget_repository.update = AsyncMock(return_value=mock_gadget_read)
+    result = await service.gadget_update("id-1", GadgetUpdate(name="Updated"))
+
+    assert isinstance(result, GadgetRead)
+    mock_gadget_repository.update.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_gadget_delete(
+    mock_gadget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+):
+    """
+    Test successful deletion of a gadget.
+    """
+    service = GadgetService(
+        mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+    mock_gadget_repository.delete = AsyncMock(return_value=None)
+    await service.gadget_delete("id-1")
+
+    mock_gadget_repository.delete.assert_called_once_with("id-1")
+
+
+@pytest.mark.asyncio
+async def test_gadget_bulk_delete(
+    mock_gadget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+):
+    """
+    Test successful bulk deletion of gadgets.
+    """
+    service = GadgetService(
+        mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+    mock_gadget_repository.bulk_delete = AsyncMock(return_value=2)
+    result = await service.gadget_bulk_delete(["g1", "g2"])
+
+    assert result == 2
+
+
+@pytest.mark.asyncio
+async def test_gadget_bulk_update(
+    mock_gadget_repository: AsyncMock,
+    mock_allow_acls: list[SectionACL],
+    mock_settings: AppSettings,
+    mock_cache: AppCacheBase,
+):
+    """
+    Test successful bulk update of gadgets.
+    """
+    service = GadgetService(
+        mock_gadget_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+    mock_gadget_repository.bulk_update = AsyncMock(return_value=3)
+    result = await service.gadget_bulk_update(
+        ["g1", "g2", "g3"], GadgetUpdate(name="bulk")
+    )
+
+    assert result == 3

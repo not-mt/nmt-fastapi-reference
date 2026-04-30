@@ -4,14 +4,14 @@
 
 """Unit tests for repository layer."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors.v1.exceptions import ResourceNotFoundError
 from app.layers.repository.v1.widgets import WidgetRepository
-from app.schemas.dto.v1.widgets import WidgetCreate
+from app.schemas.dto.v1.widgets import WidgetCreate, WidgetUpdate
 from app.schemas.orm.v1.widgets import Widget
 
 
@@ -119,3 +119,162 @@ async def test_update_force_widget_not_found(mock_async_session: AsyncMock):
 
     with pytest.raises(ResourceNotFoundError, match="Widget with ID 1 not found"):
         await repository.update_force(1, 123)
+
+
+@pytest.mark.asyncio
+async def test_get_all(
+    mock_async_session: AsyncMock,
+    mock_db_widget: Widget,
+):
+    """
+    Test retrieving all widgets with pagination.
+    """
+    repository = WidgetRepository(mock_async_session)
+
+    # Mock count query
+    count_result = MagicMock()
+    count_result.scalar_one.return_value = 1
+
+    # Mock select query
+    scalars_mock = MagicMock()
+    scalars_mock.all.return_value = [mock_db_widget]
+    select_result = MagicMock()
+    select_result.scalars.return_value = scalars_mock
+
+    mock_async_session.execute = AsyncMock(side_effect=[count_result, select_result])
+
+    widgets, total = await repository.get_all(page=1, page_size=10)
+
+    assert total == 1
+    assert len(widgets) == 1
+    assert widgets[0] is mock_db_widget
+
+
+@pytest.mark.asyncio
+async def test_get_all_with_search(
+    mock_async_session: AsyncMock,
+    mock_db_widget: Widget,
+):
+    """
+    Test retrieving all widgets with a search filter.
+    """
+    repository = WidgetRepository(mock_async_session)
+
+    count_result = MagicMock()
+    count_result.scalar_one.return_value = 1
+
+    scalars_mock = MagicMock()
+    scalars_mock.all.return_value = [mock_db_widget]
+    select_result = MagicMock()
+    select_result.scalars.return_value = scalars_mock
+
+    mock_async_session.execute = AsyncMock(side_effect=[count_result, select_result])
+
+    widgets, total = await repository.get_all(search="Test")
+
+    assert total == 1
+    assert len(widgets) == 1
+
+
+@pytest.mark.asyncio
+async def test_update_success(
+    mock_async_session: AsyncMock,
+    mock_db_widget: Widget,
+):
+    """
+    Test updating a widget when it exists.
+    """
+    repository = WidgetRepository(mock_async_session)
+    mock_async_session.get.return_value = mock_db_widget
+    mock_async_session.commit.return_value = None
+    mock_async_session.refresh.return_value = None
+
+    result = await repository.update(1, WidgetUpdate(name="Updated"))
+
+    assert result is mock_db_widget
+    assert result.name == "Updated"
+
+
+@pytest.mark.asyncio
+async def test_update_not_found(mock_async_session: AsyncMock):
+    """
+    Test updating a widget when it does not exist.
+    """
+    repository = WidgetRepository(mock_async_session)
+    mock_async_session.get.return_value = None
+
+    with pytest.raises(ResourceNotFoundError):
+        await repository.update(999, WidgetUpdate(name="nope"))
+
+
+@pytest.mark.asyncio
+async def test_delete_success(
+    mock_async_session: AsyncMock,
+    mock_db_widget: Widget,
+):
+    """
+    Test deleting a widget when it exists.
+    """
+    repository = WidgetRepository(mock_async_session)
+    mock_async_session.get.return_value = mock_db_widget
+    mock_async_session.delete.return_value = None
+    mock_async_session.commit.return_value = None
+
+    await repository.delete(1)
+
+    mock_async_session.delete.assert_called_once_with(mock_db_widget)
+
+
+@pytest.mark.asyncio
+async def test_delete_not_found(mock_async_session: AsyncMock):
+    """
+    Test deleting a widget when it does not exist.
+    """
+    repository = WidgetRepository(mock_async_session)
+    mock_async_session.get.return_value = None
+
+    with pytest.raises(ResourceNotFoundError):
+        await repository.delete(999)
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete(mock_async_session: AsyncMock):
+    """
+    Test bulk deleting widgets.
+    """
+    repository = WidgetRepository(mock_async_session)
+    mock_result = MagicMock()
+    mock_result.rowcount = 2
+    mock_async_session.execute = AsyncMock(return_value=mock_result)
+    mock_async_session.commit.return_value = None
+
+    count = await repository.bulk_delete([1, 2])
+
+    assert count == 2
+
+
+@pytest.mark.asyncio
+async def test_bulk_update(mock_async_session: AsyncMock):
+    """
+    Test bulk updating widgets.
+    """
+    repository = WidgetRepository(mock_async_session)
+    mock_result = MagicMock()
+    mock_result.rowcount = 3
+    mock_async_session.execute = AsyncMock(return_value=mock_result)
+    mock_async_session.commit.return_value = None
+
+    count = await repository.bulk_update([1, 2, 3], WidgetUpdate(name="bulk"))
+
+    assert count == 3
+
+
+@pytest.mark.asyncio
+async def test_bulk_update_no_fields(mock_async_session: AsyncMock):
+    """
+    Test bulk update with no fields returns 0 without DB call.
+    """
+    repository = WidgetRepository(mock_async_session)
+    count = await repository.bulk_update([1], WidgetUpdate())
+
+    assert count == 0

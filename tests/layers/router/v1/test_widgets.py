@@ -353,3 +353,158 @@ async def test_widget_zap_endpoint_status_not_found(
     # Reset the dependency override
     app.dependency_overrides.pop(get_widget_service, None)
     app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_list_endpoint_success(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+    mock_widget_read: WidgetRead,
+):
+    """
+    Unit test for the widget_list endpoint.
+    """
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_list = AsyncMock(return_value=([mock_widget_read], 1))
+
+    response = client.get(
+        "/v1/widgets/",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "1"
+    assert len(response.json()) == 1
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_update_endpoint_success(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+    mock_widget_read: WidgetRead,
+):
+    """
+    Unit test for the widget_update endpoint.
+    """
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_update = AsyncMock(return_value=mock_widget_read)
+
+    response = client.patch(
+        f"/v1/widgets/{mock_widget_read.id}",
+        headers={"X-API-Key": mock_api_key},
+        json={"name": "Updated"},
+    )
+    assert response.status_code == 200
+    assert response.json()["id"] == mock_widget_read.id
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_delete_endpoint_success(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+):
+    """
+    Unit test for the widget_delete endpoint.
+    """
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_delete = AsyncMock(return_value=None)
+
+    response = client.delete(
+        "/v1/widgets/1",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 204
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_bulk_delete_endpoint_success(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+):
+    """
+    Unit test for the widget_bulk_delete endpoint.
+    """
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_bulk_delete = AsyncMock(return_value=2)
+
+    response = client.post(
+        "/v1/widgets/actions/bulk/delete",
+        headers={"X-API-Key": mock_api_key},
+        json=[1, 2],
+    )
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2}
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_bulk_update_endpoint_success(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+):
+    """
+    Unit test for the widget_bulk_update endpoint.
+    """
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_bulk_update = AsyncMock(return_value=2)
+
+    response = client.post(
+        "/v1/widgets/actions/bulk/update",
+        headers={"X-API-Key": mock_api_key},
+        json={"ids": [1, 2], "updates": {"name": "bulk"}},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"updated": 2}
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
