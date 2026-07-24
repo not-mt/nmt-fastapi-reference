@@ -1,3 +1,7 @@
+## v1.6.1 (2026-07-24)
+
+    - **fix**: missing create_kafka_producer() call (#144) (7604de5)
+
 ## v1.6.0 (2026-07-24)
 
     - **feat**: add zap task persistence (#142) (b0a4932)
