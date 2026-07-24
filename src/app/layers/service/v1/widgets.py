@@ -27,6 +27,7 @@ from app.schemas.dto.v1.widgets import (
     WidgetUpdate,
     WidgetZap,
     WidgetZapTask,
+    WidgetZapTaskRead,
 )
 from app.tasks.v1.widgets import WidgetZapParams, widget_zap_task
 
@@ -206,43 +207,88 @@ class WidgetService:
 
     async def widget_zap(self, widget_id: int, payload: WidgetZap) -> WidgetZapTask:
         """
-        Zap an existing widget.
+        Zap an existing widget by initiating an async task.
 
         Args:
             widget_id: The ID of the widget to zap.
-            payload: Parameters for the async task.
+            payload: The task parameters.
 
         Returns:
-            WidgetZapTask: Information about the newly created task.
+            WidgetZapTask: Status details about the new task.
         """
         await self._is_authz(self.acls, "zap")
 
-        db_widget = await self.widget_repository.get_by_id(widget_id)
-        logger.debug(f"Preparing to zap widget ID {db_widget.id}")
+        await self.widget_repository.get_by_id(widget_id)
 
-        # start the async task and report the uuid
-        result = widget_zap_task(
-            WidgetZapParams(
-                request_id=REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
-                widget_id=widget_id,
-                duration=payload.duration,
-            )
+        params = WidgetZapParams(
+            request_id=REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
+            widget_id=widget_id,
+            duration=payload.duration,
         )
-        task_uuid = "PENDING"
-        # if hasattr(result, "task"):
-        task = getattr(result, "task")
-        task_uuid = getattr(task, "id")
+        huey_task = widget_zap_task.schedule(args=[params], delay=0)
 
-        task_md = {
-            "uuid": task_uuid,
-            "id": widget_id,
-            "state": "PENDING",
-            "duration": payload.duration,
-            "runtime": 0,
-        }
-        store_task_metadata(huey_app, task_uuid, task_md)
+        await self.widget_repository.zap_task_create(
+            widget_id=widget_id,
+            task_uuid=huey_task.id,
+            duration=payload.duration,
+        )
 
-        return WidgetZapTask.model_validate(task_md)
+        await self.widget_repository.update_last_task(
+            widget_id=widget_id,
+            task_uuid=huey_task.id,
+            status="PENDING",
+        )
+
+        task_md = WidgetZapTask(
+            uuid=huey_task.id,
+            widget_id=widget_id,
+            state="PENDING",
+            duration=payload.duration,
+            runtime=0,
+            result=None,
+        )
+        store_task_metadata(huey_app, huey_task.id, task_md.model_dump())
+
+        logger.info(f"Zap task {huey_task.id} scheduled for widget {widget_id}")
+        return task_md
+
+    async def widget_zap_history(
+        self,
+        widget_id: int,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search: str | None = None,
+    ) -> tuple[list[WidgetZapTaskRead], int]:
+        """
+        Retrieve zap task history for a widget with pagination.
+
+        Args:
+            widget_id: The ID of the widget.
+            page: The page number (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search filter.
+
+        Returns:
+            tuple[list[WidgetZapTaskRead], int]: List of task history records and total count.
+        """
+        await self._is_authz(self.acls, "read")
+        await self.widget_repository.get_by_id(widget_id)
+
+        db_tasks, total = await self.widget_repository.zap_task_list(
+            widget_id=widget_id,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+        )
+
+        result_tasks = [WidgetZapTaskRead.model_validate(t) for t in db_tasks]
+        return result_tasks, total
 
     async def widget_zap_by_uuid(
         self,
@@ -250,32 +296,72 @@ class WidgetService:
         task_uuid: str,
     ) -> WidgetZapTask:
         """
-        Retrieve a widget by its ID.
+        Retrieve a widget zap task status by UUID.
+
+        Checks the database first. If a completed (SUCCESS or FAILED) record
+        exists, returns it without querying Huey. Otherwise falls back to Huey
+        task metadata/result.
 
         Args:
             widget_id: The ID of the widget.
             task_uuid: The UUID of the async task.
 
         Returns:
-            WidgetZapTask: The retrieved widget.
+            WidgetZapTask: The task status and metadata.
 
         Raises:
-            ResourceNotFoundError: Raised if the task UUID cannot be found.
+            ResourceNotFoundError: Raised if the task cannot be found in DB or Huey.
+            task_error: If a task error occurred during result fetch.
         """
         await self._is_authz(self.acls, "read")
 
         db_widget = await self.widget_repository.get_by_id(widget_id)
         logger.debug(f"Fetching zap status for widget ID {db_widget.id}")
 
-        # NOTE: missing result might mean the task is still running
-        task_result = fetch_task_result(huey_app, task_uuid)
-        if task_result:
-            return WidgetZapTask.model_validate(task_result)
+        db_task = await self.widget_repository.get_zap_task_by_uuid(
+            widget_id=widget_id,
+            task_uuid=task_uuid,
+        )
 
-        # no result and no running metadata is a problem
-        task_md = fetch_task_metadata(huey_app, task_uuid)
-        if not task_result and not task_md:
+        if db_task is not None and db_task.state in ("SUCCESS", "FAILED"):
+            logger.debug(
+                f"Found completed zap task in DB for {task_uuid}: {db_task.state}"
+            )
+            return WidgetZapTask(
+                uuid=db_task.task_uuid,
+                state=db_task.state,
+                widget_id=db_task.widget_id,
+                duration=db_task.duration,
+                runtime=db_task.runtime,
+                result=db_task.result,
+            )
+
+        task_result = None
+        task_error: Exception | None = None
+        try:
+            task_result = fetch_task_result(huey_app, task_uuid)
+        except Exception as exc:
+            task_error = exc
+
+        if task_result:
+            task_md = WidgetZapTask.model_validate(task_result)
+            return task_md
+
+        if task_error is not None:
+            try:
+                await self.widget_repository.zap_task_update(
+                    task_uuid=task_uuid,
+                    state="FAILED",
+                    result={"error": str(task_error)},
+                )
+            except ResourceNotFoundError:
+                pass
+            raise task_error
+
+        task_md_raw = fetch_task_metadata(huey_app, task_uuid)
+        if task_md_raw is None:
             logger.debug(f"Task metadata not found for {task_uuid}")
             raise ResourceNotFoundError(task_uuid, "Task")
+        task_md = WidgetZapTask(**task_md_raw)
 
         return WidgetZapTask.model_validate(task_md)

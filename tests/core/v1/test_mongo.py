@@ -39,15 +39,15 @@ def test_mongo_clients_initialization_with_url():
             return_value=mock_sync_client,
         ),
     ):
-        # NOTE: reload module to re-execute initialization code
         import importlib
 
         import app.core.v1.mongo as mongo_module
 
         importlib.reload(mongo_module)
 
-        assert mongo_module.async_client is mock_async_client
-        assert mongo_module.sync_client is mock_sync_client
+        # Trigger lazy initialization via getter functions
+        assert mongo_module.get_async_client() is mock_async_client
+        assert mongo_module.get_sync_client() is mock_sync_client
         assert mongo_module.sync_client is not None
         assert mongo_module.sync_client.address == ("localhost", 27017)
 

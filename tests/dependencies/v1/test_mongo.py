@@ -23,10 +23,12 @@ async def test_get_mongo_db_returns_correct_database():
     mock_settings.mongo.db = mock_db_name
     mock_db = AsyncMock(spec=AsyncMongoDatabase)
 
-    with patch("app.dependencies.v1.mongo.async_client", autospec=True) as mock_client:
-        mock_client.__getitem__.return_value = mock_db
+    mock_client = MagicMock()
+    mock_client.__getitem__.return_value = mock_db
+
+    with patch("app.dependencies.v1.mongo.get_async_client", return_value=mock_client):
         db = await get_mongo_db(settings=mock_settings)
 
-        mock_client.__getitem__.assert_called_once_with(mock_db_name)
-        assert db is mock_db
-        assert isinstance(db, AsyncMongoDatabase)
+    mock_client.__getitem__.assert_called_once_with(mock_db_name)
+    assert db is mock_db
+    assert isinstance(db, AsyncMongoDatabase)

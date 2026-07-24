@@ -6,6 +6,7 @@
 
 import asyncio
 import json
+import types
 from datetime import date, datetime
 from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -76,43 +77,36 @@ def test_custom_serializer():
 @pytest.mark.asyncio
 async def test_kafka_producer_initialization_with_auth():
     """
-    Test producer is initialized when Kafka is enabled with auth.
+    Test producer is lazily created when Kafka is enabled with auth.
     """
     mock_producer_instance = MagicMock()
+    mock_producer_instance.start = AsyncMock()
 
-    test_settings = AppSettings(
-        kafka=KafkaSettings(
-            enabled=True,
-            bootstrap_servers=["localhost:9092"],
-            group_id="test-group",
-            security_protocol="SASL_PLAINTEXT",
-            sasl_mechanism="PLAIN",
-            sasl_plain_username="user",
-            sasl_plain_password="pass",
-        )
+    mock_sk = types.SimpleNamespace(
+        enabled=True,
+        bootstrap_servers=["localhost:9092"],
+        group_id="test-group",
+        security_protocol="SASL_PLAINTEXT",
+        sasl_mechanism="PLAIN",
+        sasl_plain_username="user",
+        sasl_plain_password="pass",
     )
 
+    import app.core.v1.kafka as kafka_module
+
     with (
+        patch.object(kafka_module, "_sk", mock_sk),
+        patch.object(kafka_module, "_sasl_mechanism", "PLAIN"),
+        patch.object(kafka_module, "_sasl_plain_username", "user"),
+        patch.object(kafka_module, "_sasl_plain_password", "pass"),
         patch(
-            "app.core.v1.settings.get_app_settings",
-            return_value=test_settings,
-        ),
-        patch(
-            "app.core.v1.kafka.AIOKafkaProducer",
-            return_value=mock_producer_instance,
+            "app.core.v1.kafka.AIOKafkaProducer", return_value=mock_producer_instance
         ),
     ):
-        # reload after patches to trigger producer creation with mocked settings
-        import importlib
+        result = await kafka_module.create_kafka_producer()
 
-        import app.core.v1.kafka as kafka_module
-
-        importlib.reload(kafka_module)
-
-        # assert the global kafka_producer was initialized
-        assert isinstance(kafka_module.kafka_producer, AIOKafkaProducer)
-        assert kafka_module.kafka_producer.client._sasl_plain_username == "user"
-        assert kafka_module.kafka_producer.client._sasl_plain_password == "pass"
+        assert result is mock_producer_instance
+        assert kafka_module.kafka_producer is mock_producer_instance
 
 
 def test_kafka_producer_not_initialized_when_disabled():
@@ -187,16 +181,36 @@ async def test_create_kafka_producer_disabled():
 @pytest.mark.asyncio
 async def test_create_kafka_producer_uninitialized():
     """
-    Test create_kafka_producer raises RuntimeError when uninitialized.
+    Test create_kafka_producer lazily creates the producer when None.
     """
-    with (
-        patch("app.core.v1.kafka._sk", MagicMock(enabled=True)),
-        patch("app.core.v1.kafka.kafka_producer", None),
-        pytest.raises(RuntimeError, match="Kafka producer not initialized"),
-    ):
-        from app.core.v1.kafka import create_kafka_producer
+    mock_producer_instance = MagicMock()
+    mock_producer_instance.start = AsyncMock()
 
-        await create_kafka_producer()
+    mock_sk = types.SimpleNamespace(
+        enabled=True,
+        bootstrap_servers=["localhost:9092"],
+        group_id="test-group",
+        security_protocol="PLAINTEXT",
+        sasl_mechanism="PLAIN",
+        sasl_plain_username="",
+        sasl_plain_password="",
+    )
+
+    import app.core.v1.kafka as kafka_mod
+
+    with (
+        patch.object(kafka_mod, "_sk", mock_sk),
+        patch.object(kafka_mod, "_sasl_mechanism", "PLAIN"),
+        patch.object(kafka_mod, "_sasl_plain_username", ""),
+        patch.object(kafka_mod, "_sasl_plain_password", ""),
+        patch.object(kafka_mod, "kafka_producer", None),
+        patch(
+            "app.core.v1.kafka.AIOKafkaProducer", return_value=mock_producer_instance
+        ),
+    ):
+        result = await kafka_mod.create_kafka_producer()
+
+        assert result is mock_producer_instance
 
 
 @pytest.mark.asyncio
@@ -242,7 +256,23 @@ async def test_start_demo_consumer_exception(caplog):
     mock_consumer.start = AsyncMock()
     mock_consumer.stop = AsyncMock()
 
+    mock_sk = types.SimpleNamespace(
+        enabled=True,
+        bootstrap_servers=["localhost:9092"],
+        topics=["test_topic"],
+        security_protocol="PLAINTEXT",
+        sasl_mechanism="PLAIN",
+        sasl_plain_username="",
+        sasl_plain_password="",
+        group_id="test-group",
+        auto_offset_reset="earliest",
+    )
+
     with (
+        patch.object(kafka_module, "_sk", mock_sk),
+        patch.object(kafka_module, "_sasl_mechanism", "PLAIN"),
+        patch.object(kafka_module, "_sasl_plain_username", ""),
+        patch.object(kafka_module, "_sasl_plain_password", ""),
         patch("app.core.v1.kafka.AIOKafkaConsumer", return_value=mock_consumer),
         patch("app.core.v1.kafka.route_kafka_message", side_effect=Exception("Boom!")),
     ):

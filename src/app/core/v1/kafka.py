@@ -68,17 +68,6 @@ _sasl_mechanism = _sk.sasl_mechanism if _sk.sasl_mechanism else ""
 _sasl_plain_username = _sk.sasl_plain_username if _sk.sasl_plain_username else ""
 _sasl_plain_password = _sk.sasl_plain_password if _sk.sasl_plain_password else ""
 
-if _sk.enabled:
-    kafka_producer = AIOKafkaProducer(
-        bootstrap_servers=_sk.bootstrap_servers,  # type: ignore
-        security_protocol=_sk.security_protocol,
-        sasl_mechanism=_sasl_mechanism,
-        sasl_plain_username=_sasl_plain_username,
-        sasl_plain_password=_sasl_plain_password,
-        key_serializer=lambda k: str(k).encode("utf-8"),
-        value_serializer=custom_serializer,
-    )
-
 
 async def _start_demo_consumer() -> None:
     """
@@ -143,9 +132,6 @@ async def create_kafka_producer() -> Optional[AIOKafkaProducer]:
     Returns:
         Optional[AIOKafkaProducer]: The producer instance if Kafka is enabled,
             None otherwise.
-
-    Raises:
-        RuntimeError: Raised if the Kafka is enabled and producer is uninitialized.
     """
     global kafka_producer
 
@@ -153,8 +139,16 @@ async def create_kafka_producer() -> Optional[AIOKafkaProducer]:
         logger.info("Kafka is disabled, not starting producer")
         return None
 
-    if not isinstance(kafka_producer, AIOKafkaProducer):
-        raise RuntimeError("Kafka producer not initialized")
+    if kafka_producer is None:
+        kafka_producer = AIOKafkaProducer(
+            bootstrap_servers=_sk.bootstrap_servers,  # type: ignore
+            security_protocol=_sk.security_protocol,
+            sasl_mechanism=_sasl_mechanism,
+            sasl_plain_username=_sasl_plain_username,
+            sasl_plain_password=_sasl_plain_password,
+            key_serializer=lambda k: str(k).encode("utf-8"),
+            value_serializer=custom_serializer,
+        )
 
     await kafka_producer.start()
     logger.debug("Kafka producer started")

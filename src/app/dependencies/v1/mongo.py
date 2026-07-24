@@ -7,7 +7,7 @@
 from fastapi import Depends
 from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 
-from app.core.v1.mongo import async_client
+from app.core.v1.mongo import get_async_client
 from app.core.v1.settings import AppSettings, get_app_settings
 
 
@@ -26,6 +26,7 @@ async def get_mongo_db(
     Returns:
         AsyncMongoDatabase: An async MongoDB client.
     """
-    assert async_client is not None, "async_client is not initialized"
+    client = get_async_client()
+    assert client is not None, "async_client is not initialized"
 
-    return async_client[settings.mongo.db]
+    return client[settings.mongo.db]

@@ -7,7 +7,8 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, Path, status
+from fastapi import APIRouter, Body, Depends, Path, Query, status
+from fastapi.responses import JSONResponse
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.repositories.widgets.v1.api import WidgetApiRepository
 from nmtfast.repositories.widgets.v1.schemas import (
@@ -138,6 +139,61 @@ async def widget_api_get_by_id(
         WidgetRead: The retrieved widget data.
     """
     return await widget_service.widget_get_by_id(widget_id)
+
+
+@widgets_api_router.get(
+    "/{widget_id}/zap",
+    status_code=status.HTTP_200_OK,
+    summary="List API widget zap task history",
+    description="List zap task history for an upstream API widget (paginated).",
+    operation_id="list_api_widget_zap_tasks",
+)
+async def widget_api_zap_list(
+    widget_id: Annotated[
+        int,
+        Path(description="The ID of the widget.", gt=0),
+    ],
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=5000, description="Items per page")] = 10,
+    sort_by: Annotated[str, Query(description="Field to sort by")] = "created_at",
+    sort_order: Annotated[
+        str, Query(pattern="^(asc|desc)$", description="Sort direction")
+    ] = "desc",
+    search: Annotated[str | None, Query(description="Search filter")] = None,
+    widget_service: WidgetApiService = Depends(get_widget_service),
+) -> JSONResponse:
+    """
+    Retrieve zap task history for an upstream API widget with pagination.
+
+    Upstream API exceptions (UpstreamApiException) should be caught by exception
+    handlers that are registered during app startup.
+
+    Args:
+        widget_id: The ID of the widget.
+        page: The page number (1-indexed).
+        page_size: The number of items per page.
+        sort_by: The field to sort by.
+        sort_order: The sort direction ('asc' or 'desc').
+        search: Optional search filter.
+        widget_service: The widget service instance.
+
+    Returns:
+        JSONResponse: A JSON list of zap task history records with X-Total-Count header.
+    """
+    logger.info(f"Listing zap task history for API widget {widget_id}")
+    tasks, total = await widget_service.widget_zap_history(
+        widget_id=widget_id,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search=search,
+    )
+    content = [t.model_dump(mode="json") for t in tasks]
+    return JSONResponse(
+        content=content,
+        headers={"X-Total-Count": str(total)},
+    )
 
 
 @widgets_api_router.post(

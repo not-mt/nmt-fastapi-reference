@@ -4,9 +4,11 @@
 
 """Pydantic schema for gadgets."""
 
-from typing import Optional
+from datetime import datetime
+from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from bson import ObjectId
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class GadgetBase(BaseModel):
@@ -30,6 +32,12 @@ class GadgetRead(GadgetBase):
     """Schema for reading a gadget, including additional attributes."""
 
     id: str = Field(..., description="Database or unique ID of the gadget.")
+    last_task_uuid: str | None = Field(
+        None, description="UUID of the most recent zap task."
+    )
+    last_task_status: str | None = Field(
+        None, description="Status of the most recent zap task."
+    )
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -67,12 +75,90 @@ class GadgetZap(BaseModel):
 
 
 class GadgetZapTask(BaseModel):
-    """Base schema for gadgets."""
+    """
+    DTO schema for gadget zap task metadata returned by Huey tasks.
+
+    Used for task status updates and metadata storage.
+    """
 
     uuid: str = Field(..., description="UUID of the zap task.")
     state: str = Field("UNKNOWN", description="Current state of the zap task.")
-    id: str = Field(..., description="ID of the gadget associated with the task.")
+    gadget_id: str = Field(
+        ..., description="ID of the gadget associated with the task."
+    )
     duration: int = Field(
         ..., description="Requested duration for the task in seconds."
     )
     runtime: int = Field(..., description="Runtime of the task in seconds.")
+    result: Optional[dict] = Field(None, description="Result data from the task.")
+
+
+class GadgetZapTaskRecord(BaseModel):
+    """Pydantic model for gadget zap task MongoDB document."""
+
+    id: Optional[str] = Field(default=None, alias="_id")
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_object_id(cls, value: Any) -> str | Any:
+        """
+        Convert ObjectId to string for MongoDB _id field.
+
+        Args:
+            value: The value to convert, which may be an ObjectId or already a string.
+
+        Returns:
+            str | Any: String representation of ObjectId, or the original value.
+        """
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
+
+    gadget_id: str = Field(..., description="ID of the gadget.")
+    task_uuid: str = Field(..., description="UUID of the zap task.")
+    state: str = Field("PENDING", description="Current state of the zap task.")
+    duration: int = Field(0, description="Duration of the task in seconds.")
+    runtime: int = Field(0, description="Runtime of the task in seconds.")
+    result: Optional[dict] = Field(None, description="Result data from the task.")
+    created_at: Optional[datetime] = Field(
+        None, description="Timestamp when the task record was created."
+    )
+    updated_at: Optional[datetime] = Field(
+        None, description="Timestamp when the task record was last updated."
+    )
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class GadgetZapTaskRead(BaseModel):
+    """Schema for a persisted gadget zap task history record."""
+
+    task_uuid: str = Field(..., description="UUID of the zap task.")
+    state: str = Field("UNKNOWN", description="Current state of the zap task.")
+    gadget_id: str = Field(
+        ..., description="ID of the gadget associated with the task."
+    )
+    duration: int = Field(
+        ..., description="Requested duration for the task in seconds."
+    )
+    runtime: int = Field(..., description="Runtime of the task in seconds.")
+    result: dict | None = Field(
+        None, description="Result data from the task execution."
+    )
+    created_at: datetime | None = Field(
+        None, description="Timestamp when the task record was created."
+    )
+    updated_at: datetime | None = Field(
+        None, description="Timestamp when the task record was last updated."
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GadgetZapTaskListResponse(BaseModel):
+    """Response containing a paginated list of gadget zap task history records."""
+
+    tasks: list[GadgetZapTaskRead] = Field(
+        ..., description="List of gadget zap task history records."
+    )
+    total: int = Field(..., description="Total number of task records.")

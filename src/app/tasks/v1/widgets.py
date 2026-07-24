@@ -6,6 +6,7 @@
 
 import asyncio
 import logging
+import traceback
 from typing import Optional
 
 from huey.api import Task
@@ -18,7 +19,10 @@ from app.core.v1.sqlalchemy import with_huey_db_session
 from app.core.v1.tasks import huey_app
 from app.layers.repository.v1.widgets import WidgetRepository
 from app.schemas.dto.v1.widgets import WidgetZapTask
-from app.schemas.orm.v1.widgets import Widget
+from app.schemas.orm.v1.widgets import (
+    Widget,
+)
+from app.schemas.orm.v1.widgets import WidgetZapTask as OrmWidgetZapTask  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -48,32 +52,73 @@ async def _async_logic_widget_zap(
 
     Returns:
         WidgetZapTask: Final state of the zap task.
+
+    Raises:
+        Exception: Re-raised if an error occurs during task execution.
     """
     task_uuid = task.id
     REQUEST_ID_CONTEXTVAR.set(params.request_id)
     widget_repo = WidgetRepository(db_session)
 
     db_widget: Widget = await widget_repo.get_by_id(params.widget_id)
-    logger.debug(f"{task_uuid}: db_widget: {db_widget}")
 
     task_md = WidgetZapTask.model_validate(fetch_task_metadata(huey_app, task_uuid))
     task_md.state = "RUNNING"
     store_task_metadata(huey_app, task_uuid, task_md.model_dump())
 
-    for tick in range(1, params.duration + 1):
-        logger.debug(f"{task_uuid}: Progress {tick}/{params.duration}")
-        task_md.runtime = tick
+    await widget_repo.zap_task_update(
+        task_uuid=task_uuid,
+        state="RUNNING",
+    )
+
+    try:
+        for tick in range(1, params.duration + 1):
+            logger.debug(f"{task_uuid}: Progress {tick}/{params.duration}")
+            task_md.runtime = tick
+            store_task_metadata(huey_app, task_uuid, task_md.model_dump())
+            await widget_repo.zap_task_update(
+                task_uuid=task_uuid,
+                runtime=tick,
+            )
+            await asyncio.sleep(1)
+
+        await widget_repo.update_force(params.widget_id, db_widget.force + 1)
+
+        await widget_repo.update_last_task(
+            widget_id=params.widget_id,
+            task_uuid=task_uuid,
+            status="SUCCESS",
+        )
+
+        task_md.state = "SUCCESS"
         store_task_metadata(huey_app, task_uuid, task_md.model_dump())
-        await asyncio.sleep(1)
 
-    await widget_repo.update_force(params.widget_id, db_widget.force + 1)
-    # NOTE: commit will be handled by the session manager
+        await widget_repo.zap_task_update(
+            task_uuid=task_uuid,
+            state="SUCCESS",
+            result={"widget_id": params.widget_id, "new_force": db_widget.force + 1},
+        )
 
-    task_md.state = "SUCCESS"
-    store_task_metadata(huey_app, task_uuid, task_md.model_dump())
-    logger.info(f"{task_uuid}: Completed. New force: {db_widget.force}")
-
-    return task_md
+        logger.info(f"{task_uuid}: Completed. New force: {db_widget.force}")
+        return task_md
+    except Exception as exc:
+        logger.exception(f"{task_uuid}: Exception in widget_zap_task")
+        task_md.state = "FAILED"
+        task_md = task_md.model_copy(
+            update={"result": {"error": str(exc), "traceback": traceback.format_exc()}}
+        )
+        store_task_metadata(huey_app, task_uuid, task_md.model_dump())
+        await widget_repo.zap_task_update(
+            task_uuid=task_uuid,
+            state="FAILED",
+            result={"error": str(exc)},
+        )
+        await widget_repo.update_last_task(
+            widget_id=params.widget_id,
+            task_uuid=task_uuid,
+            status="FAILED",
+        )
+        raise
 
 
 @with_huey_db_session

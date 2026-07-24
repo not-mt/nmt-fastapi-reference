@@ -317,6 +317,58 @@ async def widget_bulk_update(
     return {"updated": updated}
 
 
+@widgets_router.get(
+    "/{widget_id}/zap",
+    status_code=status.HTTP_200_OK,
+    summary="List zap task history",
+    description="List zap task history for a widget (paginated).",
+    operation_id="list_widget_zap_tasks",
+)
+async def widget_zap_list(
+    widget_id: Annotated[
+        int,
+        Path(description="The ID of the widget.", gt=0),
+    ],
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=5000, description="Items per page")] = 10,
+    sort_by: Annotated[str, Query(description="Field to sort by")] = "created_at",
+    sort_order: Annotated[
+        str, Query(pattern="^(asc|desc)$", description="Sort direction")
+    ] = "desc",
+    search: Annotated[str | None, Query(description="Search filter")] = None,
+    widget_service: WidgetService = Depends(get_widget_service),
+) -> JSONResponse:
+    """
+    Retrieve zap task history for a widget with pagination.
+
+    Args:
+        widget_id: The ID of the widget.
+        page: The page number (1-indexed).
+        page_size: The number of items per page.
+        sort_by: The field to sort by.
+        sort_order: The sort direction ('asc' or 'desc').
+        search: Optional search filter.
+        widget_service: The widget service instance.
+
+    Returns:
+        JSONResponse: A JSON list of zap task history records with X-Total-Count header.
+    """
+    logger.info(f"Listing zap task history for widget {widget_id}")
+    tasks, total = await widget_service.widget_zap_history(
+        widget_id=widget_id,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search=search,
+    )
+    content = [t.model_dump(mode="json") for t in tasks]
+    return JSONResponse(
+        content=content,
+        headers={"X-Total-Count": str(total)},
+    )
+
+
 @widgets_router.post(
     "/{widget_id}/zap",
     response_model=WidgetZapTask,
