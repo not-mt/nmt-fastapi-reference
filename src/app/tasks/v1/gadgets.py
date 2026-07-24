@@ -6,6 +6,7 @@
 
 import asyncio
 import logging
+import traceback
 
 from huey.api import Task
 from nmtfast.middleware.v1.request_id import REQUEST_ID_CONTEXTVAR
@@ -35,7 +36,7 @@ async def _async_logic_gadget_zap(
     mongo_client: AsyncMongoDatabase,
 ) -> GadgetZapTask:
     """
-    Core logic for gadget_zap_task.
+    Core logic for gadget_zap_task with persistence.
 
     Args:
         params: Validated task parameters.
@@ -44,31 +45,71 @@ async def _async_logic_gadget_zap(
 
     Returns:
         GadgetZapTask: Final task state after completion.
+
+    Raises:
+        Exception: Re-raised if an error occurs during task execution.
     """
     task_uuid = task.id
     REQUEST_ID_CONTEXTVAR.set(params.request_id)
     gadget_repo = GadgetRepository(mongo_client)
 
     db_gadget: GadgetRead = await gadget_repo.get_by_id(params.gadget_id)
-    logger.debug(f"{task_uuid}: db_gadget: {db_gadget}")
 
     task_md = GadgetZapTask.model_validate(fetch_task_metadata(huey_app, task_uuid))
     task_md.state = "RUNNING"
     store_task_metadata(huey_app, task_uuid, task_md.model_dump())
 
-    for tick in range(1, params.duration + 1):
-        logger.debug(f"{task_uuid}: Progress {tick}/{params.duration}")
-        task_md.runtime = tick
+    await gadget_repo.zap_task_update(
+        task_uuid=task_uuid,
+        state="RUNNING",
+    )
+
+    try:
+        for tick in range(1, params.duration + 1):
+            logger.debug(f"{task_uuid}: Progress {tick}/{params.duration}")
+            task_md.runtime = tick
+            store_task_metadata(huey_app, task_uuid, task_md.model_dump())
+            await gadget_repo.zap_task_update(
+                task_uuid=task_uuid,
+                runtime=tick,
+            )
+            await asyncio.sleep(1)
+
+        current_force = db_gadget.force or 0
+        await gadget_repo.update_force(params.gadget_id, current_force + 1)
+
+        await gadget_repo.collection.update_one(
+            {"id": params.gadget_id},
+            {"$set": {"last_task_uuid": task_uuid, "last_task_status": "SUCCESS"}},
+        )
+
+        task_md.state = "SUCCESS"
         store_task_metadata(huey_app, task_uuid, task_md.model_dump())
-        await asyncio.sleep(1)
 
-    current_force = db_gadget.force or 0
-    await gadget_repo.update_force(params.gadget_id, current_force + 1)
+        await gadget_repo.zap_task_update(
+            task_uuid=task_uuid,
+            state="SUCCESS",
+            result={"gadget_id": params.gadget_id, "new_force": current_force + 1},
+        )
 
-    task_md.state = "SUCCESS"
-    store_task_metadata(huey_app, task_uuid, task_md.model_dump())
-
-    return task_md
+        return task_md
+    except Exception as exc:
+        logger.exception(f"{task_uuid}: Exception in gadget_zap_task")
+        task_md.state = "FAILED"
+        task_md = task_md.model_copy(
+            update={"result": {"error": str(exc), "traceback": traceback.format_exc()}}
+        )
+        store_task_metadata(huey_app, task_uuid, task_md.model_dump())
+        await gadget_repo.zap_task_update(
+            task_uuid=task_uuid,
+            state="FAILED",
+            result={"error": str(exc)},
+        )
+        await gadget_repo.collection.update_one(
+            {"id": params.gadget_id},
+            {"$set": {"last_task_uuid": task_uuid, "last_task_status": "FAILED"}},
+        )
+        raise
 
 
 @with_huey_mongo_session

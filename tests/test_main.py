@@ -157,12 +157,23 @@ async def test_lifespan_kafka_producer_none() -> None:
     """
     test_app = FastAPI(lifespan=lifespan)
     mock_create_all = MagicMock()  # NOTE: DO NOT AsyncMock() THIS EVER
+    mock_context = MagicMock()
+    mock_context.__aenter__ = AsyncMock(return_value=mock_context)
+    mock_context.__aexit__ = AsyncMock(return_value=False)
+    mock_context.run_sync = AsyncMock(side_effect=lambda f, *a, **kw: f(*a, **kw))
+    mock_engine = MagicMock()
+    mock_engine.begin.return_value = mock_context
     mock_consumer_task = MagicMock()
 
+    import app.main as main_module
+
     with (
+        patch.object(main_module, "async_engine", mock_engine),
         patch.object(Base.metadata, "create_all", mock_create_all),
         patch("app.main.create_kafka_consumers", return_value=[mock_consumer_task]),
         patch("app.main.create_kafka_producer", return_value=None),
+        patch("app.main.set_app_ready"),
+        patch("app.main.set_app_not_ready"),
     ):
         async with LifespanManager(test_app):
             pass

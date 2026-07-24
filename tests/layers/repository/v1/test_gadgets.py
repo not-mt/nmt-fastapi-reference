@@ -11,7 +11,12 @@ import pytest
 
 from app.errors.v1.exceptions import ResourceNotFoundError
 from app.layers.repository.v1.gadgets import GadgetRepository
-from app.schemas.dto.v1.gadgets import GadgetCreate, GadgetRead, GadgetUpdate
+from app.schemas.dto.v1.gadgets import (
+    GadgetCreate,
+    GadgetRead,
+    GadgetUpdate,
+    GadgetZapTaskRecord,
+)
 
 
 class _MockAsyncCursor:
@@ -32,6 +37,9 @@ class _MockAsyncCursor:
         if not self._results:
             raise StopAsyncIteration
         return self._results.pop(0)
+
+    async def to_list(self, length=None):
+        return self._results
 
 
 @pytest.fixture
@@ -65,14 +73,16 @@ def mock_db_gadget() -> dict:
 @pytest.fixture
 def mock_mongo_db(mock_db_gadget):
     """
-    Fixture for a mock MongoDB database with a 'gadgets' collection using AsyncMock.
+    Fixture for a mock MongoDB database with 'gadgets' and 'gadget_zap_tasks' collections.
     """
     collection = MagicMock()
     collection.find_one = AsyncMock(return_value=mock_db_gadget.copy())
     collection.insert_one = AsyncMock(return_value=mock_db_gadget.copy())
     collection.update_one = AsyncMock(return_value=None)
 
-    mongo_db = {"gadgets": collection}
+    task_collection = MagicMock()
+
+    mongo_db = {"gadgets": collection, "gadget_zap_tasks": task_collection}
     return mongo_db
 
 
@@ -100,6 +110,29 @@ async def test_get_by_id_found(mock_mongo_db, mock_db_gadget):
     assert isinstance(result, GadgetRead)
     assert result.id == mock_db_gadget["id"]
     assert result.name == mock_db_gadget["name"]
+
+
+@pytest.mark.asyncio
+async def test_get_by_id_legacy_format(mock_mongo_db):
+    """
+    Test retrieving a gadget with legacy schema (gadget_id instead of id, missing name).
+    """
+    legacy_doc = {
+        "gadget_id": "legacy-uuid-001",
+        "height": "10",
+        "mass": "5",
+        "force": 20,
+    }
+    mock_mongo_db["gadgets"].find_one.return_value = legacy_doc
+    repo = GadgetRepository(db=mock_mongo_db)
+    result = await repo.get_by_id("legacy-uuid-001")
+
+    assert isinstance(result, GadgetRead)
+    assert result.id == "legacy-uuid-001"
+    assert result.name == "Gadget (legacy-uuid-001)"
+    assert result.height == "10"
+    assert result.mass == "5"
+    assert result.force == 20
 
 
 @pytest.mark.asyncio
@@ -286,3 +319,222 @@ async def test_bulk_update_no_fields(mock_mongo_db):
     count = await repo.bulk_update(["g1"], GadgetUpdate())
 
     assert count == 0
+
+
+@pytest.mark.asyncio
+async def test_zap_task_create(mock_mongo_db):
+    """Test creating a gadget zap task document in the task collection."""
+    from uuid import uuid4
+
+    insert_result = MagicMock()
+    insert_result.inserted_id = "new-id-123"
+    mock_mongo_db["gadget_zap_tasks"].insert_one = AsyncMock(return_value=insert_result)
+
+    repo = GadgetRepository(db=mock_mongo_db)
+    task_uuid = uuid4()
+    gadget_id = "123e4567-e89b-12d3-a456-426614174000"
+
+    result = await repo.zap_task_create(
+        gadget_id=gadget_id,
+        task_uuid=str(task_uuid),
+        duration=5,
+    )
+
+    mock_mongo_db["gadget_zap_tasks"].insert_one.assert_called_once()
+    insert_doc = mock_mongo_db["gadget_zap_tasks"].insert_one.call_args[0][0]
+    assert insert_doc["gadget_id"] == gadget_id
+    assert insert_doc["task_uuid"] == str(task_uuid)
+    assert insert_doc["state"] == "PENDING"
+    assert insert_doc["duration"] == 5
+
+    assert isinstance(result, GadgetZapTaskRecord)
+    assert result.gadget_id == gadget_id
+    assert str(result.task_uuid) == str(task_uuid)
+    assert result.state == "PENDING"
+    assert result.id == "new-id-123"
+
+
+@pytest.mark.asyncio
+async def test_zap_task_update(mock_mongo_db):
+    """Test updating a gadget zap task document in the task collection."""
+    from uuid import uuid4
+
+    repo = GadgetRepository(db=mock_mongo_db)
+    task_uuid = uuid4()
+
+    mock_mongo_db["gadget_zap_tasks"].find_one_and_update = AsyncMock(
+        return_value={
+            "gadget_id": "123e4567-e89b-12d3-a456-426614174000",
+            "task_uuid": str(task_uuid),
+            "state": "RUNNING",
+            "created_at": "2026-06-20T01:00:00Z",
+        }
+    )
+
+    result = await repo.zap_task_update(
+        task_uuid=str(task_uuid),
+        state="RUNNING",
+    )
+
+    mock_mongo_db["gadget_zap_tasks"].find_one_and_update.assert_called_once()
+    filter_doc = mock_mongo_db["gadget_zap_tasks"].find_one_and_update.call_args[0][0]
+    assert filter_doc["task_uuid"] == str(task_uuid)
+
+    assert isinstance(result, GadgetZapTaskRecord)
+    assert result.state == "RUNNING"
+
+
+@pytest.mark.asyncio
+async def test_zap_task_update_not_found(mock_mongo_db):
+    """Test zap_task_update raises ResourceNotFoundError when task does not exist."""
+    from uuid import uuid4
+
+    repo = GadgetRepository(db=mock_mongo_db)
+    task_uuid = uuid4()
+
+    mock_mongo_db["gadget_zap_tasks"].find_one_and_update = AsyncMock(return_value=None)
+
+    with pytest.raises(ResourceNotFoundError):
+        await repo.zap_task_update(task_uuid=str(task_uuid), state="RUNNING")
+
+
+@pytest.mark.asyncio
+async def test_zap_task_list(mock_mongo_db):
+    """Test listing zap tasks for a gadget with pagination."""
+    from uuid import uuid4
+
+    repo = GadgetRepository(db=mock_mongo_db)
+    gadget_id = "123e4567-e89b-12d3-a456-426614174000"
+
+    task_uuid_1 = uuid4()
+    task_uuid_2 = uuid4()
+
+    docs = [
+        {
+            "gadget_id": gadget_id,
+            "task_uuid": str(task_uuid_1),
+            "state": "SUCCESS",
+            "created_at": "2026-06-20T01:00:00Z",
+        },
+        {
+            "gadget_id": gadget_id,
+            "task_uuid": str(task_uuid_2),
+            "state": "PENDING",
+            "created_at": "2026-06-20T02:00:00Z",
+        },
+    ]
+
+    mock_mongo_db["gadget_zap_tasks"].count_documents = AsyncMock(return_value=2)
+
+    cursor = _MockAsyncCursor(docs)
+    mock_mongo_db["gadget_zap_tasks"].find = MagicMock(return_value=cursor)
+
+    tasks, total = await repo.zap_task_list(gadget_id=gadget_id, page=1, page_size=10)
+
+    assert total == 2
+    assert len(tasks) == 2
+    assert isinstance(tasks[0], GadgetZapTaskRecord)
+    assert tasks[0].state == "SUCCESS"
+
+
+@pytest.mark.asyncio
+async def test_zap_task_list_empty(mock_mongo_db):
+    """Test listing zap tasks when none exist for a gadget."""
+    repo = GadgetRepository(db=mock_mongo_db)
+    gadget_id = "nonexistent"
+
+    mock_mongo_db["gadget_zap_tasks"].count_documents = AsyncMock(return_value=0)
+
+    cursor = _MockAsyncCursor([])
+    mock_mongo_db["gadget_zap_tasks"].find = MagicMock(return_value=cursor)
+
+    tasks, total = await repo.zap_task_list(gadget_id=gadget_id, page=1, page_size=10)
+
+    assert total == 0
+    assert len(tasks) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_zap_task_by_uuid_found(mock_mongo_db):
+    """Test retrieving a zap task by UUID scoped to a gadget."""
+    repo = GadgetRepository(db=mock_mongo_db)
+    gadget_id = "123e4567-e89b-12d3-a456-426614174000"
+    task_uuid = "test-task-uuid-123"
+
+    mock_mongo_db["gadget_zap_tasks"].find_one = AsyncMock(
+        return_value={
+            "task_uuid": task_uuid,
+            "gadget_id": gadget_id,
+            "state": "SUCCESS",
+            "duration": 5,
+            "runtime": 4,
+            "result": {"gadget_id": gadget_id, "new_force": 21},
+        }
+    )
+
+    result = await repo.get_zap_task_by_uuid(gadget_id, task_uuid)
+
+    mock_mongo_db["gadget_zap_tasks"].find_one.assert_called_once_with(
+        {"gadget_id": gadget_id, "task_uuid": task_uuid}
+    )
+    assert result is not None
+    assert result["task_uuid"] == task_uuid
+    assert result["state"] == "SUCCESS"
+
+
+@pytest.mark.asyncio
+async def test_get_zap_task_by_uuid_not_found(mock_mongo_db):
+    """Test get_zap_task_by_uuid returns None when task does not exist."""
+    repo = GadgetRepository(db=mock_mongo_db)
+    task_uuid = "non-existent-uuid"
+
+    mock_mongo_db["gadget_zap_tasks"].find_one = AsyncMock(return_value=None)
+
+    result = await repo.get_zap_task_by_uuid("nonexistent", task_uuid)
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_zap_task_list_with_search(mock_mongo_db):
+    """Test listing zap tasks with a search filter that uses $or."""
+    from uuid import uuid4
+
+    repo = GadgetRepository(db=mock_mongo_db)
+    gadget_id = "123e4567-e89b-12d3-a456-426614174000"
+
+    task_uuid_1 = uuid4()
+
+    docs = [
+        {
+            "gadget_id": gadget_id,
+            "task_uuid": str(task_uuid_1),
+            "state": "SUCCESS",
+            "created_at": "2026-06-20T01:00:00Z",
+        },
+    ]
+
+    mock_mongo_db["gadget_zap_tasks"].count_documents = AsyncMock(return_value=1)
+
+    cursor = _MockAsyncCursor(docs)
+    mock_mongo_db["gadget_zap_tasks"].find = MagicMock(return_value=cursor)
+
+    tasks, total = await repo.zap_task_list(
+        gadget_id=gadget_id, search="abc123", page=1, page_size=10
+    )
+
+    assert total == 1
+    assert len(tasks) == 1
+    assert isinstance(tasks[0], GadgetZapTaskRecord)
+
+    count_call = mock_mongo_db["gadget_zap_tasks"].count_documents.call_args[0][0]
+    assert "gadget_id" in count_call
+    assert count_call["gadget_id"] == gadget_id
+    assert "$or" in count_call
+    assert {"task_uuid": {"$regex": "abc123", "$options": "i"}} in count_call["$or"]
+    assert {"state": {"$regex": "abc123", "$options": "i"}} in count_call["$or"]
+
+    find_call = mock_mongo_db["gadget_zap_tasks"].find.call_args[0][0]
+    assert "gadget_id" in find_call
+    assert find_call["gadget_id"] == gadget_id
+    assert "$or" in find_call

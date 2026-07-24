@@ -66,9 +66,13 @@ async def test_async_logic_gadget_zap_success(monkeypatch, mock_task):
     monkeypatch.setattr("app.tasks.v1.gadgets.GadgetRepository", lambda _: mock_repo)
     monkeypatch.setattr(
         "app.tasks.v1.gadgets.fetch_task_metadata",
-        lambda _, __: GadgetZapTask(
-            uuid="mock-task-id", id="gadget-42", state="PENDING", duration=1, runtime=0
-        ),
+        lambda _, __: {
+            "uuid": "mock-task-id",
+            "gadget_id": "gadget-42",
+            "state": "PENDING",
+            "duration": 1,
+            "runtime": 0,
+        },
     )
     monkeypatch.setattr("app.tasks.v1.gadgets.store_task_metadata", lambda *_: None)
 
@@ -87,7 +91,7 @@ async def test_async_mongo_gadget_zap_success(
     Test a successful zap of a gadget, isolating the async Mongo wrapper.
     """
     expected = GadgetZapTask(
-        uuid="abc-123", state="SUCCESS", id="123", duration=1, runtime=1
+        uuid="abc-123", state="SUCCESS", gadget_id="123", duration=1, runtime=1
     )
     monkeypatch.setattr(
         "app.core.v1.mongo.AsyncMongoClient",
@@ -113,7 +117,7 @@ def test_gadget_zap_task_wrapper(monkeypatch):
     expected_result = GadgetZapTask(
         uuid="abc-123",
         state="SUCCESS",
-        id="123",
+        gadget_id="123",
         duration=0,
         runtime=0,
     )
@@ -130,3 +134,47 @@ def test_gadget_zap_task_wrapper(monkeypatch):
 
     assert isinstance(result, GadgetZapTask)
     assert result == expected_result
+
+
+@pytest.mark.asyncio
+async def test_async_logic_gadget_zap_error_path(monkeypatch, mock_task):
+    """
+    Test gadget zap error path when update_force raises an exception.
+    """
+    mock_task = MagicMock()
+    mock_task.id = "mock-task-id"
+    params = GadgetZapParams(request_id="abc-123", gadget_id="gadget-42", duration=1)
+
+    mock_repo = AsyncMock()
+    mock_repo.get_by_id.return_value = GadgetRead(id="gadget-42", name="test", force=5)
+    mock_repo.update_force.side_effect = RuntimeError("force error")
+
+    monkeypatch.setattr("app.tasks.v1.gadgets.GadgetRepository", lambda _: mock_repo)
+    monkeypatch.setattr(
+        "app.tasks.v1.gadgets.fetch_task_metadata",
+        lambda _, __: {
+            "uuid": "mock-task-id",
+            "gadget_id": "gadget-42",
+            "state": "PENDING",
+            "duration": 1,
+            "runtime": 0,
+        },
+    )
+    store_called = []
+
+    def capture_store(huey, uuid, payload):
+        store_called.append(payload)
+        return None
+
+    monkeypatch.setattr("app.tasks.v1.gadgets.store_task_metadata", capture_store)
+
+    with pytest.raises(RuntimeError, match="force error"):
+        await _async_logic_gadget_zap(params, mock_task, mongo_client=MagicMock())
+
+    assert len(store_called) >= 1
+    failed_meta = [s for s in store_called if s.get("state") == "FAILED"]
+    assert len(failed_meta) == 1
+    assert "error" in failed_meta[0].get("result", {})
+    assert mock_repo.zap_task_update.call_count >= 1
+    last_call = mock_repo.zap_task_update.call_args_list[-1]
+    assert last_call[1]["state"] == "FAILED"

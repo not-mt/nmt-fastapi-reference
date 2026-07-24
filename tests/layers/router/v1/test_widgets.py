@@ -93,7 +93,7 @@ def mock_widget_zap_task() -> WidgetZapTask:
     return WidgetZapTask(
         uuid="uuid-here",
         state="PENDING",
-        id=1,
+        widget_id=1,
         duration=1,
         runtime=0,
     )
@@ -234,6 +234,9 @@ async def test_widget_zap_endpoint_success(
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_widget_service.widget_get_by_id = AsyncMock(return_value=mock_widget_read)
+    mock_widget_service.widget_repository = AsyncMock()
+    mock_widget_service.widget_repository.update_last_task = AsyncMock()
+    mock_widget_service.widget_repository.zap_task_create = AsyncMock()
 
     response = client.post(
         f"/v1/widgets/{mock_widget_read.id}/zap",
@@ -301,6 +304,9 @@ async def test_widget_zap_endpoint_status_success(
     app.dependency_overrides[get_widget_service] = override_get_widget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_widget_service.widget_get_by_id = AsyncMock(return_value=mock_widget_read)
+    mock_widget_service.widget_repository = AsyncMock()
+    mock_widget_service.widget_repository.update_last_task = AsyncMock()
+    mock_widget_service.widget_repository.zap_task_create = AsyncMock()
 
     response = client.post(
         f"/v1/widgets/{mock_widget_read.id}/zap",
@@ -505,6 +511,112 @@ async def test_widget_bulk_update_endpoint_success(
     )
     assert response.status_code == 200
     assert response.json() == {"updated": 2}
+
+
+@pytest.mark.asyncio
+async def test_widget_zap_list_endpoint_success(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+    mock_widget_read: WidgetRead,
+    mock_widget_zap_task: WidgetZapTask,
+):
+    """Unit test for the widget zap list endpoint with pagination."""
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_get_by_id = AsyncMock(return_value=mock_widget_read)
+    mock_widget_service.widget_zap_history = AsyncMock(
+        return_value=([mock_widget_zap_task], 5)
+    )
+
+    response = client.get(
+        f"/v1/widgets/{mock_widget_read.id}/zap",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "5"
+    assert len(response.json()) == 1
+    assert response.json()[0]["uuid"] == mock_widget_zap_task.uuid
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_zap_list_endpoint_with_pagination(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+    mock_widget_read: WidgetRead,
+    mock_widget_zap_task: WidgetZapTask,
+):
+    """Unit test for the widget zap list endpoint with explicit pagination params."""
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_get_by_id = AsyncMock(return_value=mock_widget_read)
+    mock_widget_service.widget_zap_history = AsyncMock(
+        return_value=([mock_widget_zap_task], 10)
+    )
+
+    response = client.get(
+        f"/v1/widgets/{mock_widget_read.id}/zap",
+        params={"page": 2, "page_size": 5},
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "10"
+    mock_widget_service.widget_zap_history.assert_called_once_with(
+        widget_id=mock_widget_read.id,
+        page=2,
+        page_size=5,
+        sort_by="created_at",
+        sort_order="desc",
+        search=None,
+    )
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_widget_zap_list_endpoint_not_found(
+    mock_api_key: str,
+    mock_widget_service: AsyncMock,
+):
+    """Unit test for the widget zap list endpoint when widget does not exist."""
+
+    def override_get_widget_service():
+        return mock_widget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_widget_service] = override_get_widget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_widget_service.widget_zap_history = AsyncMock(
+        side_effect=ResourceNotFoundError(resource_id=999, resource_name="Widget")
+    )
+
+    response = client.get(
+        "/v1/widgets/999/zap",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 404
+
+    app.dependency_overrides.pop(get_widget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
 
     app.dependency_overrides.pop(get_widget_service, None)
     app.dependency_overrides.pop(authenticate_headers, None)

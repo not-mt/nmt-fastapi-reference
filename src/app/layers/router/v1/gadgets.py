@@ -302,6 +302,58 @@ async def gadget_bulk_update(
     return {"updated": updated}
 
 
+@gadgets_router.get(
+    "/{gadget_id}/zap",
+    status_code=status.HTTP_200_OK,
+    summary="List zap task history",
+    description="List zap task history for a gadget (paginated).",
+    operation_id="list_gadget_zap_tasks",
+)
+async def gadget_zap_list(
+    gadget_id: Annotated[
+        str,
+        Path(description="The ID of the gadget."),
+    ],
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=5000, description="Items per page")] = 10,
+    sort_by: Annotated[str, Query(description="Field to sort by")] = "created_at",
+    sort_order: Annotated[
+        str, Query(pattern="^(asc|desc)$", description="Sort direction")
+    ] = "desc",
+    search: Annotated[str | None, Query(description="Search filter")] = None,
+    gadget_service: GadgetService = Depends(get_gadget_service),
+) -> JSONResponse:
+    """
+    Retrieve zap task history for a gadget with pagination.
+
+    Args:
+        gadget_id: The ID of the gadget.
+        page: The page number (1-indexed).
+        page_size: The number of items per page.
+        sort_by: The field to sort by.
+        sort_order: The sort direction ('asc' or 'desc').
+        search: Optional search filter.
+        gadget_service: The gadget service instance.
+
+    Returns:
+        JSONResponse: A JSON list of zap task history records with X-Total-Count header.
+    """
+    logger.info(f"Listing zap task history for gadget {gadget_id}")
+    tasks, total = await gadget_service.gadget_zap_history(
+        gadget_id=gadget_id,
+        page=page,
+        page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search=search,
+    )
+    content = [t.model_dump(mode="json") for t in tasks]
+    return JSONResponse(
+        content=content,
+        headers={"X-Total-Count": str(total)},
+    )
+
+
 @gadgets_router.post(
     "/{gadget_id}/zap",
     response_model=GadgetZapTask,

@@ -25,6 +25,7 @@ from app.schemas.dto.v1.gadgets import (
     GadgetUpdate,
     GadgetZap,
     GadgetZapTask,
+    GadgetZapTaskRead,
 )
 from app.tasks.v1.gadgets import GadgetZapParams, gadget_zap_task
 
@@ -192,43 +193,92 @@ class GadgetService:
 
     async def gadget_zap(self, gadget_id: str, payload: GadgetZap) -> GadgetZapTask:
         """
-        Zap an existing gadget.
+        Zap a gadget by initiating an async task.
 
         Args:
             gadget_id: The ID of the gadget to zap.
-            payload: Parameters for the async task.
+            payload: The task parameters.
 
         Returns:
-            GadgetZapTask: Information about the newly created task.
+            GadgetZapTask: Status details about the new task.
+
+        Raises:
+            ResourceNotFoundError: If the gadget is not found.
         """
         await self._is_authz(self.acls, "zap")
 
-        db_gadget = await self.gadget_repository.get_by_id(gadget_id)
-        logger.debug(f"Preparing to zap gadget ID {db_gadget.id}")
+        await self.gadget_repository.get_by_id(gadget_id)
 
-        # start the async task and report the uuid
-        result = gadget_zap_task(
-            GadgetZapParams(
-                request_id=REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
-                gadget_id=gadget_id,
-                duration=payload.duration,
-            )
+        params = GadgetZapParams(
+            request_id=REQUEST_ID_CONTEXTVAR.get() or "UNKNOWN",
+            gadget_id=gadget_id,
+            duration=payload.duration,
         )
-        task_uuid = "PENDING"
-        # if hasattr(result, "task"):
-        task = getattr(result, "task")
-        task_uuid = getattr(task, "id")
+        huey_task = gadget_zap_task.schedule(args=[params], delay=0)
 
-        task_md = {
-            "uuid": task_uuid,
-            "id": gadget_id,
-            "state": "PENDING",
-            "duration": payload.duration,
-            "runtime": 0,
-        }
-        store_task_metadata(huey_app, task_uuid, task_md)
+        await self.gadget_repository.zap_task_create(
+            gadget_id=gadget_id,
+            task_uuid=huey_task.id,
+            duration=payload.duration,
+        )
 
-        return GadgetZapTask.model_validate(task_md)
+        update_result = await self.gadget_repository.collection.update_one(
+            {"id": gadget_id},
+            {"$set": {"last_task_uuid": huey_task.id, "last_task_status": "PENDING"}},
+        )
+        if update_result.matched_count == 0:
+            raise ResourceNotFoundError(gadget_id, "Gadget")
+
+        task_md = GadgetZapTask(
+            uuid=huey_task.id,
+            gadget_id=gadget_id,
+            state="PENDING",
+            duration=payload.duration,
+            runtime=0,
+            result=None,
+        )
+        store_task_metadata(huey_app, huey_task.id, task_md.model_dump())
+
+        logger.info(f"Zap task {huey_task.id} scheduled for gadget {gadget_id}")
+        return task_md
+
+    async def gadget_zap_history(
+        self,
+        gadget_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search: str | None = None,
+    ) -> tuple[list[GadgetZapTaskRead], int]:
+        """
+        Retrieve zap task history for a gadget with pagination.
+
+        Args:
+            gadget_id: The ID of the gadget.
+            page: The page number (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search filter.
+
+        Returns:
+            tuple[list[GadgetZapTaskRead], int]: List of task history records and total count.
+        """
+        await self._is_authz(self.acls, "read")
+        await self.gadget_repository.get_by_id(gadget_id)
+
+        tasks, total = await self.gadget_repository.zap_task_list(
+            gadget_id=gadget_id,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search=search,
+        )
+
+        result_tasks = [GadgetZapTaskRead.model_validate(t) for t in tasks]
+        return result_tasks, total
 
     async def gadget_zap_by_uuid(
         self,
@@ -236,32 +286,72 @@ class GadgetService:
         task_uuid: str,
     ) -> GadgetZapTask:
         """
-        Retrieve a gadget by its ID.
+        Retrieve a gadget zap task status by UUID.
+
+        Checks the database first. If a completed (SUCCESS or FAILED) record
+        exists, returns it without querying Huey. Otherwise falls back to Huey
+        task metadata/result.
 
         Args:
             gadget_id: The ID of the gadget.
             task_uuid: The UUID of the async task.
 
         Returns:
-            GadgetZapTask: The retrieved gadget.
+            GadgetZapTask: The task status and metadata.
 
         Raises:
-            ResourceNotFoundError: If the gadget is not found.
+            ResourceNotFoundError: If the gadget or task is not found.
+            task_error: If a task error occurred during result fetch.
         """
         await self._is_authz(self.acls, "read")
 
         db_gadget = await self.gadget_repository.get_by_id(gadget_id)
         logger.debug(f"Fetching zap status for gadget ID {db_gadget.id}")
 
-        # NOTE: missing result might mean the task is still running
-        task_result = fetch_task_result(huey_app, task_uuid)
-        if task_result:
-            return GadgetZapTask.model_validate(task_result)
+        db_task = await self.gadget_repository.get_zap_task_by_uuid(
+            gadget_id=gadget_id,
+            task_uuid=task_uuid,
+        )
 
-        # no result and no running metadata is a problem
-        task_md = fetch_task_metadata(huey_app, task_uuid)
-        if not task_result and not task_md:
+        if db_task is not None and db_task.get("state") in ("SUCCESS", "FAILED"):
+            logger.debug(
+                f"Found completed zap task in DB for {task_uuid}: {db_task['state']}"
+            )
+            return GadgetZapTask(
+                uuid=db_task["task_uuid"],
+                state=db_task["state"],
+                gadget_id=db_task["gadget_id"],
+                duration=db_task["duration"],
+                runtime=db_task["runtime"],
+                result=db_task.get("result"),
+            )
+
+        task_result = None
+        task_error: Exception | None = None
+        try:
+            task_result = fetch_task_result(huey_app, task_uuid)
+        except Exception as exc:
+            task_error = exc
+
+        if task_result:
+            task_md = GadgetZapTask.model_validate(task_result)
+            return task_md
+
+        if task_error is not None:
+            try:
+                await self.gadget_repository.zap_task_update(
+                    task_uuid=task_uuid,
+                    state="FAILED",
+                    result={"error": str(task_error)},
+                )
+            except ResourceNotFoundError:
+                pass
+            raise task_error
+
+        task_md_raw = fetch_task_metadata(huey_app, task_uuid)
+        if task_md_raw is None:
             logger.debug(f"Task metadata not found for {task_uuid}")
             raise ResourceNotFoundError(task_uuid, "Task")
+        task_md = GadgetZapTask(**task_md_raw)
 
         return GadgetZapTask.model_validate(task_md)

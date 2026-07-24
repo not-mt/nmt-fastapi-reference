@@ -11,6 +11,7 @@ import pytest
 from nmtfast.auth.v1.exceptions import AuthorizationError
 from nmtfast.cache.v1.base import AppCacheBase
 from nmtfast.errors.v1.exceptions import UpstreamApiException
+from nmtfast.htmx.v1.schemas import PaginationMeta
 from nmtfast.repositories.widgets.v1.api import WidgetApiRepository
 from nmtfast.repositories.widgets.v1.exceptions import WidgetApiException
 from nmtfast.repositories.widgets.v1.schemas import (
@@ -18,6 +19,7 @@ from nmtfast.repositories.widgets.v1.schemas import (
     WidgetRead,
     WidgetZap,
     WidgetZapTask,
+    WidgetZapTaskRead,
 )
 
 from app.core.v1.settings import AppSettings
@@ -77,7 +79,9 @@ def mock_widget_zap_task():
     """
     Fixture to provide a mock WidgetZapTask model.
     """
-    return WidgetZapTask(uuid="test-uuid", id=1, state="PENDING", duration=5, runtime=0)
+    return WidgetZapTask(
+        uuid="test-uuid", widget_id=1, state="PENDING", duration=5, runtime=0
+    )
 
 
 @pytest.fixture
@@ -216,7 +220,7 @@ async def test_widget_zap_success(
     )
 
     repo_task = WidgetZapTask(
-        uuid="test-uuid", id=1, state="PENDING", duration=5, runtime=0
+        uuid="test-uuid", widget_id=1, state="PENDING", duration=5, runtime=0
     )
     mock_api_repository.widget_zap = AsyncMock(return_value=repo_task)
 
@@ -270,7 +274,7 @@ async def test_widget_zap_by_uuid_success(
 
     repo_task = WidgetZapTask(
         uuid="test-uuid",
-        id=1,
+        widget_id=1,
         state="COMPLETE",
         duration=5,
         runtime=5,
@@ -308,3 +312,73 @@ async def test_widget_zap_by_uuid_api_error(
 
     # verify repository was called correctly
     mock_api_repository.widget_zap_by_uuid.assert_awaited_once_with(1, "test-uuid")
+
+
+@pytest.mark.asyncio
+async def test_widget_zap_history_success(
+    mock_api_repository, mock_allow_acls, mock_settings, mock_cache
+):
+    """Test successful widget zap history retrieval."""
+    service = WidgetApiService(
+        mock_api_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+
+    task_read = WidgetZapTaskRead(
+        id=1,
+        widget_id=1,
+        task_uuid="test-uuid",
+        state="SUCCESS",
+        duration=5,
+        runtime=4,
+    )
+    mock_api_repository.widget_zap_history = AsyncMock(
+        return_value=([task_read], PaginationMeta(total=1))
+    )
+
+    result, total = await service.widget_zap_history(
+        widget_id=1,
+        page=1,
+        page_size=10,
+        sort_by="created_at",
+        sort_order="desc",
+        search=None,
+    )
+
+    mock_api_repository.widget_zap_history.assert_awaited_once_with(
+        widget_id=1,
+        page=1,
+        page_size=10,
+        sort_by="created_at",
+        sort_order="desc",
+        search=None,
+    )
+    assert total == 1
+    assert len(result) == 1
+    assert isinstance(result[0], WidgetZapTaskRead)
+    assert result[0].task_uuid == "test-uuid"
+    assert result[0].state == "SUCCESS"
+
+
+@pytest.mark.asyncio
+async def test_widget_zap_history_api_error(
+    mock_api_repository,
+    mock_allow_acls,
+    mock_settings,
+    mock_cache,
+    mock_error_response,
+):
+    """Test upstream API error during zap history retrieval."""
+    service = WidgetApiService(
+        mock_api_repository, mock_allow_acls, mock_settings, mock_cache
+    )
+    mock_api_repository.widget_zap_history = AsyncMock(
+        side_effect=WidgetApiException(mock_error_response)
+    )
+
+    with pytest.raises(UpstreamApiException) as exc_info:
+        await service.widget_zap_history(widget_id=1, page=1, page_size=10)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.message == "Internal Server Error"
+    assert exc_info.value.req_id == "req-123"
+    assert exc_info.value.caller_status_code == 502

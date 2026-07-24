@@ -151,6 +151,9 @@ exclude_lines = [
 [tool.ruff]
 cache-dir = ".local/ruff_cache"
 
+[tool.ty.environment]
+extra-paths = [ ".venv/lib/site-packages", "src", "../nmt-fastapi-library/src" ]
+
 [tool.commitizen]
 # NOTE: we are not customizing for now, even though we would really like to
 #   support "chore" and "revert" CC types when using `cz commit`; however,

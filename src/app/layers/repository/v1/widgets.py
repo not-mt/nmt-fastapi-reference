@@ -5,6 +5,7 @@
 """Repository layer for Widget resources."""
 
 import logging
+from typing import Any
 
 from nmtfast.retry.v1.tenacity import tenacity_retry_log
 from sqlalchemy import delete as sa_delete
@@ -15,7 +16,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from app.errors.v1.exceptions import ResourceNotFoundError
 from app.schemas.dto.v1.widgets import WidgetCreate, WidgetUpdate
-from app.schemas.orm.v1.widgets import Widget
+from app.schemas.orm.v1.widgets import Widget, WidgetZapTask
 
 logger = logging.getLogger(__name__)
 
@@ -301,3 +302,172 @@ class WidgetRepository:
         logger.debug(f"Bulk updated {updated_count} widgets")
 
         return updated_count
+
+    async def zap_task_create(
+        self,
+        widget_id: int,
+        task_uuid: str,
+        duration: int,
+    ) -> WidgetZapTask:
+        """
+        Create a new zap task record.
+
+        Args:
+            widget_id: The ID of the widget.
+            task_uuid: The UUID of the Huey task.
+            duration: The task duration in seconds.
+
+        Returns:
+            WidgetZapTask: The created task record.
+        """
+        task_record = WidgetZapTask(
+            widget_id=widget_id,
+            task_uuid=task_uuid,
+            state="PENDING",
+            duration=duration,
+        )
+        self.db.add(task_record)
+        await self.db.flush()
+        await self.db.refresh(task_record)
+        return task_record
+
+    async def zap_task_update(
+        self,
+        task_uuid: str,
+        **fields: Any,
+    ) -> WidgetZapTask:
+        """
+        Update a zap task record by task_uuid.
+
+        Args:
+            task_uuid: The UUID of the task to update.
+            **fields: Fields to update (e.g., state, runtime, result).
+
+        Returns:
+            WidgetZapTask: The updated task record.
+
+        Raises:
+            ResourceNotFoundError: If the task record is not found.
+        """
+        stmt = select(WidgetZapTask).where(WidgetZapTask.task_uuid == task_uuid)
+        result = await self.db.execute(stmt)
+        task_record = result.scalar_one_or_none()
+        if task_record is None:
+            raise ResourceNotFoundError(task_uuid, "WidgetZapTask")
+        for key, value in fields.items():
+            setattr(task_record, key, value)
+        await self.db.flush()
+        await self.db.refresh(task_record)
+        return task_record
+
+    async def zap_task_list(
+        self,
+        widget_id: int,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search: str | None = None,
+    ) -> tuple[list[WidgetZapTask], int]:
+        """
+        List zap task records for a widget with pagination.
+
+        Args:
+            widget_id: The ID of the widget.
+            page: The page number (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search filter (matches on task_uuid or state).
+
+        Returns:
+            tuple[list[WidgetZapTask], int]: A list of task records and total count.
+        """
+        query = select(WidgetZapTask).where(WidgetZapTask.widget_id == widget_id)
+        count_query = select(func.count()).select_from(
+            select(WidgetZapTask).where(WidgetZapTask.widget_id == widget_id).subquery()
+        )
+
+        if search:
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    WidgetZapTask.task_uuid.ilike(search_pattern),
+                    WidgetZapTask.state.ilike(search_pattern),
+                )
+            )
+
+        total = await self.db.scalar(count_query)
+        if total is None:
+            total = 0
+
+        sort_column = getattr(WidgetZapTask, sort_by, WidgetZapTask.created_at)
+        if sort_order == "desc":
+            query = query.order_by(sort_column.desc())
+        else:
+            query = query.order_by(sort_column.asc())
+
+        offset = (page - 1) * page_size
+        query = query.offset(offset).limit(page_size)
+
+        result = await self.db.execute(query)
+        tasks = list(result.scalars().all())
+        logger.debug(f"Retrieved {len(tasks)} tasks (total: {total})")
+
+        return tasks, total
+
+    async def get_zap_task_by_uuid(
+        self,
+        widget_id: int,
+        task_uuid: str,
+    ) -> WidgetZapTask | None:
+        """
+        Look up a single zap task record by task_uuid, scoped to a widget.
+
+        Returns None instead of raising if not found.
+
+        Args:
+            widget_id: The ID of the widget to scope the search.
+            task_uuid: The UUID of the zap task.
+
+        Returns:
+            WidgetZapTask | None: The task record if found, None otherwise.
+        """
+        stmt = (
+            select(WidgetZapTask)
+            .where(WidgetZapTask.widget_id == widget_id)
+            .where(WidgetZapTask.task_uuid == task_uuid)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_last_task(
+        self,
+        widget_id: int,
+        task_uuid: str,
+        status: str,
+    ) -> Widget:
+        """
+        Update widget with last task UUID and status.
+
+        Args:
+            widget_id: The ID of the widget.
+            task_uuid: The UUID of the zap task.
+            status: The task status.
+
+        Returns:
+            Widget: The updated widget.
+
+        Raises:
+            ResourceNotFoundError: If the widget is not found.
+        """
+        stmt = select(Widget).where(Widget.id == widget_id).with_for_update()
+        result = await self.db.execute(stmt)
+        widget = result.scalar_one_or_none()
+        if widget is None:
+            raise ResourceNotFoundError(widget_id, "Widget")
+        widget.last_task_uuid = task_uuid
+        widget.last_task_status = status
+        await self.db.flush()
+        await self.db.refresh(widget)
+        return widget

@@ -4,7 +4,7 @@
 
 """Tests for widget tasks."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,23 +58,50 @@ async def test_async_logic_widget_zap_success(
 
     monkeypatch.setattr(
         "app.tasks.v1.widgets.fetch_task_metadata",
-        lambda huey_app, task_id: WidgetZapTask(
-            uuid=task_id, state="PENDING", id=mock_widget.id, duration=1, runtime=0
-        ),
+        lambda huey_app, task_id: {
+            "uuid": task_id,
+            "state": "PENDING",
+            "widget_id": mock_widget.id,
+            "duration": 1,
+            "runtime": 0,
+        },
     )
     monkeypatch.setattr(
         "app.tasks.v1.widgets.store_task_metadata", lambda huey_app, uuid, payload: None
     )
+    with patch.object(
+        __import__(
+            "app.tasks.v1.widgets", fromlist=["WidgetRepository"]
+        ).WidgetRepository,
+        "zap_task_update",
+        new=AsyncMock(
+            return_value=WidgetZapTask(
+                uuid="abc-123",
+                state="SUCCESS",
+                widget_id=mock_widget.id,
+                duration=1,
+                runtime=1,
+            )
+        ),
+    ):
+        with patch.object(
+            __import__(
+                "app.tasks.v1.widgets", fromlist=["WidgetRepository"]
+            ).WidgetRepository,
+            "update_last_task",
+            new=AsyncMock(return_value=mock_widget),
+        ):
+            params = WidgetZapParams(
+                request_id="req-1", widget_id=mock_widget.id, duration=1
+            )
 
-    params = WidgetZapParams(request_id="req-1", widget_id=mock_widget.id, duration=1)
+            result = await _async_logic_widget_zap(
+                params=params, task=mock_task, db_session=mock_db_session
+            )
 
-    result = await _async_logic_widget_zap(
-        params=params, task=mock_task, db_session=mock_db_session
-    )
-
-    assert isinstance(result, WidgetZapTask)
-    assert result.id == mock_widget.id
-    assert result.state == "SUCCESS"
+            assert isinstance(result, WidgetZapTask)
+            assert result.widget_id == mock_widget.id
+            assert result.state == "SUCCESS"
 
 
 @pytest.mark.asyncio
@@ -95,13 +122,45 @@ async def test_async_logic_widget_zap_not_found(monkeypatch, mock_task):
 
 
 @pytest.mark.asyncio
+async def test_async_logic_widget_zap_error_path(
+    monkeypatch, mock_widget, mock_task, mock_db_session
+):
+    """
+    Test widget zap logic when an exception occurs during execution.
+    """
+
+    monkeypatch.setattr(
+        "app.tasks.v1.widgets.fetch_task_metadata",
+        lambda huey_app, task_id: {
+            "uuid": task_id,
+            "state": "PENDING",
+            "widget_id": mock_widget.id,
+            "duration": 1,
+            "runtime": 0,
+        },
+    )
+    monkeypatch.setattr(
+        "app.tasks.v1.widgets.store_task_metadata", lambda huey_app, uuid, payload: None
+    )
+    # Make update_force raise an exception to trigger the error path
+    mock_db_session.get = AsyncMock(side_effect=RuntimeError("db error"))
+
+    params = WidgetZapParams(request_id="req-1", widget_id=mock_widget.id, duration=1)
+
+    with pytest.raises(RuntimeError, match="db error"):
+        await _async_logic_widget_zap(
+            params=params, task=mock_task, db_session=mock_db_session
+        )
+
+
+@pytest.mark.asyncio
 async def test_async_db_widget_zap_success(monkeypatch, mock_task, mock_db_session):
     """
     Test successful execution of DB wrapper.
     """
 
     expected = WidgetZapTask(
-        uuid="abc-123", state="SUCCESS", id=1, duration=1, runtime=1
+        uuid="abc-123", state="SUCCESS", widget_id=1, duration=1, runtime=1
     )
 
     monkeypatch.setattr(
@@ -136,7 +195,7 @@ def test_widget_zap_task_wrapper(monkeypatch):
     expected_result = WidgetZapTask(
         uuid="abc-123",
         state="SUCCESS",
-        id=1,
+        widget_id=1,
         duration=0,
         runtime=0,
     )
@@ -159,3 +218,74 @@ def test_widget_zap_task_wrapper(monkeypatch):
 
     assert isinstance(result, WidgetZapTask)
     assert result == expected_result
+
+
+@pytest.mark.asyncio
+async def test_async_logic_widget_zap_error_path_full(
+    monkeypatch, mock_widget, mock_task, mock_db_session
+):
+    """
+    Test widget zap logic when update_force raises during SUCCESS phase.
+    """
+    store_calls = []
+
+    monkeypatch.setattr(
+        "app.tasks.v1.widgets.fetch_task_metadata",
+        lambda huey_app, task_id: {
+            "uuid": task_id,
+            "state": "PENDING",
+            "widget_id": mock_widget.id,
+            "duration": 1,
+            "runtime": 0,
+        },
+    )
+
+    def capture_store(huey_app, uuid, payload):
+        store_calls.append(payload)
+        return None
+
+    monkeypatch.setattr("app.tasks.v1.widgets.store_task_metadata", capture_store)
+
+    from unittest.mock import patch
+
+    with patch.object(
+        __import__(
+            "app.tasks.v1.widgets", fromlist=["WidgetRepository"]
+        ).WidgetRepository,
+        "update_force",
+        new=AsyncMock(side_effect=RuntimeError("force error")),
+    ):
+        with patch.object(
+            __import__(
+                "app.tasks.v1.widgets", fromlist=["WidgetRepository"]
+            ).WidgetRepository,
+            "zap_task_update",
+            new=AsyncMock(
+                return_value=WidgetZapTask(
+                    uuid="abc-123",
+                    state="FAILED",
+                    widget_id=mock_widget.id,
+                    duration=1,
+                    runtime=1,
+                )
+            ),
+        ):
+            with patch.object(
+                __import__(
+                    "app.tasks.v1.widgets", fromlist=["WidgetRepository"]
+                ).WidgetRepository,
+                "update_last_task",
+                new=AsyncMock(return_value=mock_widget),
+            ):
+                params = WidgetZapParams(
+                    request_id="req-1", widget_id=mock_widget.id, duration=1
+                )
+
+                with pytest.raises(RuntimeError, match="force error"):
+                    await _async_logic_widget_zap(
+                        params=params, task=mock_task, db_session=mock_db_session
+                    )
+
+                failed_stores = [s for s in store_calls if s.get("state") == "FAILED"]
+                assert len(failed_stores) == 1
+                assert "error" in failed_stores[0].get("result", {})

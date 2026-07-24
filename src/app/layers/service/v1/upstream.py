@@ -16,6 +16,7 @@ from nmtfast.repositories.widgets.v1.schemas import (
     WidgetRead,
     WidgetZap,
     WidgetZapTask,
+    WidgetZapTaskRead,
 )
 
 from app.core.v1.settings import AppSettings
@@ -153,3 +154,45 @@ class WidgetApiService:
             raise UpstreamApiException(exc)
 
         return WidgetZapTask.model_validate(zap_task)
+
+    async def widget_zap_history(
+        self,
+        widget_id: int,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search: str | None = None,
+    ) -> tuple[list[WidgetZapTaskRead], int]:
+        """
+        Retrieve zap task history for an API widget.
+
+        Args:
+            widget_id: The ID of the widget.
+            page: The page number (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search filter.
+
+        Returns:
+            tuple[list[WidgetZapTaskRead], int]: List of task history records and total count.
+
+        Raises:
+            UpstreamApiException: Raised if an upstream API error is reported.
+        """
+        await self._is_authz(self.acls, "read")
+
+        try:
+            tasks, meta = await self.widget_api_repository.widget_zap_history(
+                widget_id=widget_id,
+                page=page,
+                page_size=page_size,
+                sort_by=sort_by,
+                sort_order=sort_order,  # type: ignore[arg-type]
+                search=search,
+            )
+        except WidgetApiException as exc:
+            raise UpstreamApiException(exc)
+
+        return tasks, meta.total

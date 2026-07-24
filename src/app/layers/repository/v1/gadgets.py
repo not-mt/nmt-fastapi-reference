@@ -16,7 +16,12 @@ from pymongo.asynchronous.database import AsyncDatabase as AsyncMongoDatabase
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from app.errors.v1.exceptions import ResourceNotFoundError
-from app.schemas.dto.v1.gadgets import GadgetCreate, GadgetRead, GadgetUpdate
+from app.schemas.dto.v1.gadgets import (
+    GadgetCreate,
+    GadgetRead,
+    GadgetUpdate,
+    GadgetZapTaskRecord,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +37,30 @@ class GadgetRepository:
     def __init__(self, db: AsyncMongoDatabase) -> None:
         self.db: AsyncMongoDatabase = db
         self.collection: AsyncMongoCollection = db["gadgets"]
+        self.task_collection: AsyncMongoCollection = db["gadget_zap_tasks"]
+
+    @staticmethod
+    def _normalize_gadget(doc: dict[str, Any]) -> dict[str, Any]:
+        """
+        Normalize a MongoDB gadget document for GadgetRead construction.
+
+        Handles legacy data where:
+        - The primary key may be 'gadget_id' instead of 'id'
+        - The 'name' field may be missing entirely
+
+        Args:
+            doc: Raw MongoDB document dictionary.
+
+        Returns:
+            dict[str, Any]: Normalized document ready for GadgetRead.
+        """
+        normalized = dict(doc)
+        normalized.pop("_id", None)
+        if "gadget_id" in normalized and "id" not in normalized:
+            normalized["id"] = normalized.pop("gadget_id")
+        if "name" not in normalized:
+            normalized["name"] = f"Gadget ({normalized.get('id', 'unknown')})"
+        return normalized
 
     @retry(
         reraise=True,
@@ -87,7 +116,7 @@ class GadgetRepository:
             raise ResourceNotFoundError(gadget_id, "Gadget")
 
         logger.debug(f"Retrieved gadget: {db_gadget}")
-        db_gadget.pop("_id", None)
+        db_gadget = self._normalize_gadget(db_gadget)
 
         return GadgetRead(**db_gadget)
 
@@ -123,6 +152,7 @@ class GadgetRepository:
             raise ResourceNotFoundError(gadget_id, "Gadget")
 
         logger.debug(f"Gadget ID {gadget_id} force updated to {new_force}")
+        db_gadget = self._normalize_gadget(db_gadget)
 
         return GadgetRead(**db_gadget)
 
@@ -173,8 +203,7 @@ class GadgetRepository:
         )
         gadgets: list[GadgetRead] = []
         async for doc in cursor:
-            doc.pop("_id", None)
-            gadgets.append(GadgetRead(**doc))
+            gadgets.append(GadgetRead(**self._normalize_gadget(doc)))
         logger.debug(f"Retrieved {len(gadgets)} gadgets (total: {total})")
 
         return gadgets, total
@@ -212,7 +241,7 @@ class GadgetRepository:
             logger.warning(f"Gadget with ID {gadget_id} not found.")
             raise ResourceNotFoundError(gadget_id, "Gadget")
 
-        db_gadget.pop("_id", None)
+        db_gadget = self._normalize_gadget(db_gadget)
         logger.debug(f"Updated gadget ID {gadget_id}: {update_fields}")
 
         return GadgetRead(**db_gadget)
@@ -297,3 +326,140 @@ class GadgetRepository:
         logger.debug(f"Bulk updated {result.modified_count} gadgets")
 
         return result.modified_count
+
+    async def zap_task_create(
+        self,
+        gadget_id: str,
+        task_uuid: str,
+        duration: int,
+    ) -> GadgetZapTaskRecord:
+        """
+        Create a new zap task record in MongoDB.
+
+        Args:
+            gadget_id: The ID of the gadget.
+            task_uuid: The UUID of the Huey task.
+            duration: The task duration in seconds.
+
+        Returns:
+            GadgetZapTaskRecord: The created task record.
+        """
+        from datetime import datetime
+
+        task_record = GadgetZapTaskRecord(
+            gadget_id=gadget_id,
+            task_uuid=task_uuid,
+            state="PENDING",
+            duration=duration,
+            runtime=0,
+            result=None,
+            created_at=datetime.now(),
+            updated_at=None,
+        )
+        insert_doc = task_record.model_dump(by_alias=True, exclude_none=True)
+        result = await self.task_collection.insert_one(insert_doc)
+        task_record.id = str(result.inserted_id)
+        return task_record
+
+    async def zap_task_update(
+        self,
+        task_uuid: str,
+        **fields: Any,
+    ) -> GadgetZapTaskRecord:
+        """
+        Update a zap task record in MongoDB by task_uuid.
+
+        Args:
+            task_uuid: The UUID of the task to update.
+            **fields: Fields to update (e.g., state, runtime, result).
+
+        Returns:
+            GadgetZapTaskRecord: The updated task record.
+
+        Raises:
+            ResourceNotFoundError: If the task record is not found.
+        """
+        from datetime import datetime
+
+        update_data = {"$set": {**fields, "updated_at": datetime.now()}}
+        result = await self.task_collection.find_one_and_update(
+            {"task_uuid": task_uuid},
+            update_data,
+            return_document=ReturnDocument.AFTER,
+        )
+        if result is None:
+            raise ResourceNotFoundError(task_uuid, "GadgetZapTaskRecord")
+        result["id"] = result.pop("_id", None)
+
+        return GadgetZapTaskRecord.model_validate(result)
+
+    async def get_zap_task_by_uuid(
+        self,
+        gadget_id: str,
+        task_uuid: str,
+    ) -> dict[str, Any] | None:
+        """
+        Look up a single zap task document by task_uuid, scoped to a gadget.
+
+        Returns None instead of raising if not found.
+
+        Args:
+            gadget_id: The ID of the gadget to scope the search.
+            task_uuid: The UUID of the zap task.
+
+        Returns:
+            dict[str, Any] | None: The task document dict if found, None otherwise.
+        """
+        return await self.task_collection.find_one(
+            {"gadget_id": gadget_id, "task_uuid": task_uuid}
+        )
+
+    async def zap_task_list(
+        self,
+        gadget_id: str,
+        page: int = 1,
+        page_size: int = 10,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search: str | None = None,
+    ) -> tuple[list[GadgetZapTaskRecord], int]:
+        """
+        List zap task records for a gadget with pagination.
+
+        Args:
+            gadget_id: The ID of the gadget.
+            page: The page number (1-indexed).
+            page_size: The number of items per page.
+            sort_by: The field to sort by.
+            sort_order: The sort direction ('asc' or 'desc').
+            search: Optional search filter (matches on task_uuid or state).
+
+        Returns:
+            tuple[list[GadgetZapTaskRecord], int]: A list of task records and total count.
+        """
+        filter_query: dict[str, Any] = {"gadget_id": gadget_id}
+        if search:
+            filter_query["$or"] = [
+                {"task_uuid": {"$regex": search, "$options": "i"}},
+                {"state": {"$regex": search, "$options": "i"}},
+            ]
+
+        total = await self.task_collection.count_documents(filter_query)
+
+        sort_spec = [(sort_by, -1 if sort_order == "desc" else 1)]
+        skip = (page - 1) * page_size
+
+        cursor = (
+            self.task_collection.find(filter_query)
+            .sort(sort_spec)
+            .skip(skip)
+            .limit(page_size)
+        )
+        results = await cursor.to_list(length=None)
+
+        tasks = []
+        for r in results:
+            r["id"] = r.pop("_id", None)
+            tasks.append(GadgetZapTaskRecord.model_validate(r))
+
+        return tasks, total

@@ -38,13 +38,15 @@ def mock_gadget():
 @pytest.fixture
 def mock_mongo_db(mock_gadget):
     """
-    Fixture for a mock MongoDB database with a 'gadgets' collection using AsyncMock.
+    Fixture for a mock MongoDB database with 'gadgets' and 'gadget_zap_tasks' collections.
     """
     collection = MagicMock()
     collection.find_one = AsyncMock(return_value=mock_gadget.copy())
     collection.update_one = AsyncMock(return_value=None)
 
-    mongo_db = {"gadgets": collection}
+    task_collection = MagicMock()
+
+    mongo_db = {"gadgets": collection, "gadget_zap_tasks": task_collection}
     return mongo_db
 
 
@@ -92,7 +94,7 @@ def mock_gadget_zap_task() -> GadgetZapTask:
     return GadgetZapTask(
         uuid="uuid-here",
         state="PENDING",
-        id="id-1",
+        gadget_id="id-1",
         duration=1,
         runtime=0,
     )
@@ -233,6 +235,7 @@ async def test_gadget_zap_endpoint_success(
     app.dependency_overrides[get_gadget_service] = override_get_gadget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_gadget_service.gadget_get_by_id = AsyncMock(return_value=mock_gadget_read)
+    mock_gadget_service.gadget_zap = AsyncMock(return_value=mock_gadget_zap_task)
 
     response = client.post(
         f"/v1/gadgets/{mock_gadget_read.id}/zap",
@@ -300,6 +303,10 @@ async def test_gadget_zap_endpoint_status_success(
     app.dependency_overrides[get_gadget_service] = override_get_gadget_service
     app.dependency_overrides[authenticate_headers] = override_authenticate_headers
     mock_gadget_service.gadget_get_by_id = AsyncMock(return_value=mock_gadget_read)
+    mock_gadget_service.gadget_zap = AsyncMock(return_value=mock_gadget_zap_task)
+    mock_gadget_service.gadget_zap_by_uuid = AsyncMock(
+        return_value=mock_gadget_zap_task
+    )
 
     response = client.post(
         f"/v1/gadgets/{mock_gadget_read.id}/zap",
@@ -508,6 +515,108 @@ async def test_gadget_bulk_update_endpoint_success(
     app.dependency_overrides.pop(get_gadget_service, None)
     app.dependency_overrides.pop(authenticate_headers, None)
 
-    # Reset the dependency override
+
+@pytest.mark.asyncio
+async def test_gadget_zap_list_endpoint_success(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+    mock_gadget_read: GadgetRead,
+    mock_gadget_zap_task: GadgetZapTask,
+):
+    """Unit test for the gadget zap list endpoint with pagination."""
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_get_by_id = AsyncMock(return_value=mock_gadget_read)
+    mock_gadget_service.gadget_zap_history = AsyncMock(
+        return_value=([mock_gadget_zap_task], 3)
+    )
+
+    response = client.get(
+        f"/v1/gadgets/{mock_gadget_read.id}/zap",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "3"
+    assert len(response.json()) == 1
+    assert response.json()[0]["uuid"] == mock_gadget_zap_task.uuid
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_zap_list_endpoint_with_pagination(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+    mock_gadget_read: GadgetRead,
+    mock_gadget_zap_task: GadgetZapTask,
+):
+    """Unit test for the gadget zap list endpoint with explicit pagination params."""
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_get_by_id = AsyncMock(return_value=mock_gadget_read)
+    mock_gadget_service.gadget_zap_history = AsyncMock(
+        return_value=([mock_gadget_zap_task], 20)
+    )
+
+    response = client.get(
+        f"/v1/gadgets/{mock_gadget_read.id}/zap",
+        params={"page": 3, "page_size": 10},
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Total-Count"] == "20"
+    mock_gadget_service.gadget_zap_history.assert_called_once_with(
+        gadget_id=mock_gadget_read.id,
+        page=3,
+        page_size=10,
+        sort_by="created_at",
+        sort_order="desc",
+        search=None,
+    )
+
+    app.dependency_overrides.pop(get_gadget_service, None)
+    app.dependency_overrides.pop(authenticate_headers, None)
+
+
+@pytest.mark.asyncio
+async def test_gadget_zap_list_endpoint_not_found(
+    mock_api_key: str,
+    mock_gadget_service: AsyncMock,
+):
+    """Unit test for the gadget zap list endpoint when gadget does not exist."""
+
+    def override_get_gadget_service():
+        return mock_gadget_service
+
+    def override_authenticate_headers():
+        return "Authenticated successfully."
+
+    app.dependency_overrides[get_gadget_service] = override_get_gadget_service
+    app.dependency_overrides[authenticate_headers] = override_authenticate_headers
+    mock_gadget_service.gadget_zap_history = AsyncMock(
+        side_effect=ResourceNotFoundError(resource_id="bad-id", resource_name="Gadget")
+    )
+
+    response = client.get(
+        "/v1/gadgets/bad-id/zap",
+        headers={"X-API-Key": mock_api_key},
+    )
+    assert response.status_code == 404
+
     app.dependency_overrides.pop(get_gadget_service, None)
     app.dependency_overrides.pop(authenticate_headers, None)
