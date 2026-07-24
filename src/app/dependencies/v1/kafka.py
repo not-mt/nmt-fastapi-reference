@@ -7,7 +7,7 @@
 from aiokafka import AIOKafkaProducer
 from fastapi import Depends
 
-from app.core.v1.kafka import kafka_producer
+from app.core.v1.kafka import create_kafka_producer
 from app.core.v1.settings import AppSettings, get_app_settings
 
 
@@ -17,7 +17,9 @@ async def get_kafka_producer(
     """
     Provide dependency access to the Kafka producer.
 
-    This returns the async producer that can be used to send messages to Kafka.
+    Lazily initializes the producer on first use by delegating to
+    create_kafka_producer(), which caches the instance as a module-level
+    singleton. Subsequent calls reuse the already-started producer.
 
     Args:
         settings: The application settings.
@@ -26,4 +28,4 @@ async def get_kafka_producer(
         AIOKafkaProducer | None: An async Kafka producer, or None if Kafka support
             is not enabled.
     """
-    return kafka_producer
+    return await create_kafka_producer()
