@@ -1,3 +1,7 @@
+## v1.6.0 (2026-07-24)
+
+    - **feat**: add zap task persistence (#142) (b0a4932)
+
 ## v1.5.0 (2026-04-30)
 
     - **feat**: add endpoints for updates, pagination (385d3f6)
