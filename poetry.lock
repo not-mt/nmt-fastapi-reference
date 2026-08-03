@@ -2045,7 +2045,7 @@ files = [
 
 [[package]]
 name = "nmtfast"
-version = "1.5.0"
+version = "1.6.0"
 description = "Shared library for nmtfast apps"
 optional = false
 python-versions = ">=3.11,<4.0"
@@ -2068,7 +2068,7 @@ pyyaml = ">=6.0.2,<7.0.0"
 redis = ">=6.0.0,<7.0.0"
 starlette = ">=0.49.3"
 tenacity = ">=9.1.2,<10.0.0"
-types-authlib = ">=1.5.0.20250516,<2.0.0.0"
+types-authlib = ">=1.6.0.20250516,<2.0.0.0"
 
 [package.source]
 type = "directory"
@@ -4132,4 +4132,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "b4e901c7cb6f36581ad88acf7e5130d8c621cff034c898e280d177c1fa6d5dfb"
+content-hash = "07840eb23a9db22c1106577485209e26aebf3132385d9098e7de646fb2e982e2"
