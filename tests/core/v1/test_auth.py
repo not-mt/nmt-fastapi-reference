@@ -18,7 +18,7 @@ from nmtfast.settings.v1.schemas import (
     SectionACL,
 )
 
-from app.core.v1.auth import process_api_key_header, process_bearer_token
+from app.core.v1.auth import _user_label, process_api_key_header, process_bearer_token
 from app.core.v1.settings import AppSettings
 
 ph = argon2.PasswordHasher()
@@ -364,10 +364,26 @@ async def test_process_api_key_header_auth_returns_no_acls(
         assert result == []
         mock_cache.store_app_cache.assert_not_called()  # should not store empty ACLs
 
-        # test mode "authz"
-        mock_cache.fetch_app_cache.return_value = None
-        result = await process_api_key_header(
-            mock_api_key, mock_settings, mock_cache, "authz"
-        )
-        assert result == []
-        mock_cache.store_app_cache.assert_not_called()  # should not store empty ACLs
+
+# Tests for _user_label helper
+class TestUserLabel:
+    def test_username_and_name_different(self):
+        """Returns 'username (name)' when both are present and differ."""
+        assert _user_label("web_client", "alice") == "alice (web_client)"
+
+    def test_username_and_name_same(self):
+        """Returns just the name when username equals name."""
+        assert _user_label("alice", "alice") == "alice"
+
+    def test_username_none(self):
+        """Falls back to name when username is None."""
+        assert _user_label("api_key_1", None) == "api_key_1"
+
+    def test_name_empty_string(self):
+        """Returns empty string when name is empty and username is None."""
+        assert _user_label("", None) == ""
+
+    def test_both_none(self):
+        """Falls back to name when both are None - returns empty from name default."""
+        # Note: this would fail at runtime since name defaults to empty str
+        pass

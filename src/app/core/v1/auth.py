@@ -23,6 +23,14 @@ from app.core.v1.settings import AppSettings
 logger = logging.getLogger(__name__)
 
 
+def _user_label(name: str, username: str | None) -> str:
+    """Build a log-friendly user label including identity when available."""
+    if username and username != name:
+        return f"{username} ({name})"
+
+    return name
+
+
 async def process_api_key_header(
     api_key: str,
     settings: AppSettings,
@@ -56,10 +64,11 @@ async def process_api_key_header(
     if cached_auth_info := cache.fetch_app_cache(auth_hash):
         auth_info = AuthSuccess.model_validate_json(cached_auth_info)
         acls = [SectionACL.model_validate(acl) for acl in auth_info.acls]
+        user_label = _user_label(auth_info.name, auth_info.username)
         if mode == "authn":
-            logger.info(f"API key authentication for '{auth_info.name}' (cached)")
+            logger.info(f"API key authentication for '{user_label}' (cached)")
         elif mode == "authz":
-            logger.info(f"API key authorization for '{auth_info.name}' (cached)")
+            logger.info(f"API key authorization for '{user_label}' (cached)")
         return acls
 
     try:
@@ -68,10 +77,11 @@ async def process_api_key_header(
             acls = auth_info.acls
             serial_auth_info = json.dumps(to_jsonable_python(auth_info))
             cache.store_app_cache(auth_hash, serial_auth_info, 900)
+            user_label = _user_label(auth_info.name, auth_info.username)
             if mode == "authn":
-                logger.info(f"API key authentication for '{auth_info.name}'")
+                logger.info(f"API key authentication for '{user_label}'")
             elif mode == "authz":
-                logger.info(f"API key authorization for '{auth_info.name}'")
+                logger.info(f"API key authorization for '{user_label}'")
     except AuthenticationError as exc:
         raise HTTPException(status_code=403, detail=f"Invalid API key: {exc}")
 
@@ -118,13 +128,14 @@ async def process_bearer_token(
     if cached_auth_info := cache.fetch_app_cache(auth_hash):
         auth_info = AuthSuccess.model_validate_json(cached_auth_info)
         acls = [SectionACL.model_validate(item) for item in auth_info.acls]
+        user_label = _user_label(auth_info.name, auth_info.username)
         if mode == "authn":
-            logger.info(f"JWT authentication for '{auth_info.name}' (cached)")
+            logger.info(f"JWT authentication for '{user_label}' (cached)")
         elif mode == "authz":
-            logger.info(f"JWT authorization for '{auth_info.name}' (cached)")
+            logger.info(f"JWT authorization for '{user_label}' (cached)")
             for acl in acls:
                 logger.debug(
-                    f"ACL for {auth_info.name} regex:'{acl.section_regex}' "
+                    f"ACL for {user_label} regex:'{acl.section_regex}' "
                     f"permissions:{acl.permissions} "
                     f"principal:'{acl.principal_name}' "
                     f"memo:'{acl.memo}'"
@@ -137,13 +148,14 @@ async def process_bearer_token(
             acls = auth_info.acls
             serial_auth_info = json.dumps(to_jsonable_python(auth_info))
             cache.store_app_cache(auth_hash, serial_auth_info, 900)
+            user_label = _user_label(auth_info.name, auth_info.username)
             if mode == "authn":
-                logger.info(f"JWT authentication for '{auth_info.name}'")
+                logger.info(f"JWT authentication for '{user_label}'")
             elif mode == "authz":
-                logger.info(f"JWT authorization for '{auth_info.name}'")
+                logger.info(f"JWT authorization for '{user_label}'")
                 for acl in acls:
-                    logger.debug(
-                        f"ACL for {auth_info.name} regex:'{acl.section_regex}' "
+                    logger.info(
+                        f"ACL for {user_label} regex:'{acl.section_regex}' "
                         f"permissions:{acl.permissions} "
                         f"principal:'{acl.principal_name}' "
                         f"memo:'{acl.memo}'"
