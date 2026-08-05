@@ -20,7 +20,10 @@ RUN python3 -m venv /build/venv && \
     . /build/venv/bin/activate && \
     pip install --upgrade pip && \
     pip install poetry poetry-plugin-export && \
-    poetry export --only main --format requirements.txt --output /build/library-requirements.txt && \
+    # do not import dev requirements
+    poetry export --only main \
+        --format requirements.txt \
+        --output /build/library-requirements.txt && \
     poetry build -f wheel
 
 #
@@ -56,7 +59,10 @@ RUN python3 -m venv /build/venv && \
     pip install poetry poetry-plugin-export && \
     poetry config virtualenvs.create false && \
     pip install /library_wheels/*.whl && \
-    poetry export --only main --format requirements.txt --output /build/app-requirements.txt && \
+    # NOTE: do not import dev requirements
+    poetry export --only main \
+        --format requirements.txt \
+        --output /build/app-requirements.txt && \
     poetry build -f wheel
 
 #
@@ -98,10 +104,13 @@ COPY --from=app-builder /build/dist /app/dist
 COPY --from=app-builder /build/pyproject.toml /app/pyproject.toml
 
 # copy pinned requirements from both stages
-COPY --from=lib-builder /build/library-requirements.txt /app/library-requirements.txt
-COPY --from=app-builder /build/app-requirements.txt /app/app-requirements.txt
+COPY --from=lib-builder /build/library-requirements.txt \
+    /app/library-requirements.txt
+COPY --from=app-builder /build/app-requirements.txt \
+    /app/app-requirements.txt
 
-# build venv, install wheels without resolving deps, then install pinned requirements
+# build venv, install wheels without resolving deps,
+#   then install pinned requirements
 RUN python3 -m venv /app/venv && \
     . /app/venv/bin/activate && \
     pip install --upgrade pip && \
