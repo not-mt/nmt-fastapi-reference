@@ -1,14 +1,14 @@
 ## v1.7.0 (2026-08-03)
 
-    - **feat(auth)**: add username to ACL audit log messages (#146) (528a9c0)
+- **feat(auth)**: add username to ACL audit log messages (#146) (528a9c0)
 
 ## v1.6.1 (2026-07-24)
 
-    - **fix**: missing create_kafka_producer() call (#144) (7604de5)
+- **fix**: missing create_kafka_producer() call (#144) (7604de5)
 
 ## v1.6.0 (2026-07-24)
 
-    - **feat**: add zap task persistence (#142) (b0a4932)
+- **feat**: add zap task persistence (#142) (b0a4932)
 
 ## v1.5.0 (2026-04-30)
 
