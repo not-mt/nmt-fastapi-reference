@@ -121,17 +121,18 @@ async def create_kafka_consumers() -> list[asyncio.Task]:
     return task_list
 
 
-async def create_kafka_producer() -> Optional[AIOKafkaProducer]:
+async def init_kafka_producer() -> Optional[AIOKafkaProducer]:
     """
-    Initialize and start the singleton Kafka producer instance.
+    Construct and start the singleton Kafka producer instance.
 
-    Kafka may not be enabled and, for demonstration purposes, the service layer will
-    check to see if _sk.enabled == True before attempting to produce a
-    message.
+    This is the sole start path for the producer and is intended to be called
+    exactly once, from the application lifespan. Kafka may not be enabled and,
+    for demonstration purposes, the service layer will check to see if
+    _sk.enabled == True before attempting to produce a message.
 
     Returns:
-        Optional[AIOKafkaProducer]: The producer instance if Kafka is enabled,
-            None otherwise.
+        Optional[AIOKafkaProducer]: The started producer instance if Kafka is
+            enabled, None otherwise.
     """
     global kafka_producer
 
@@ -139,17 +140,29 @@ async def create_kafka_producer() -> Optional[AIOKafkaProducer]:
         logger.info("Kafka is disabled, not starting producer")
         return None
 
-    if kafka_producer is None:
-        kafka_producer = AIOKafkaProducer(
-            bootstrap_servers=_sk.bootstrap_servers,  # type: ignore
-            security_protocol=_sk.security_protocol,
-            sasl_mechanism=_sasl_mechanism,
-            sasl_plain_username=_sasl_plain_username,
-            sasl_plain_password=_sasl_plain_password,
-            key_serializer=lambda k: str(k).encode("utf-8"),
-            value_serializer=custom_serializer,
-        )
-
+    kafka_producer = AIOKafkaProducer(
+        bootstrap_servers=_sk.bootstrap_servers,  # type: ignore
+        security_protocol=_sk.security_protocol,
+        sasl_mechanism=_sasl_mechanism,
+        sasl_plain_username=_sasl_plain_username,
+        sasl_plain_password=_sasl_plain_password,
+        key_serializer=lambda k: str(k).encode("utf-8"),
+        value_serializer=custom_serializer,
+    )
     await kafka_producer.start()
     logger.debug("Kafka producer started")
+    return kafka_producer
+
+
+def get_cached_kafka_producer() -> Optional[AIOKafkaProducer]:
+    """
+    Return the cached Kafka producer instance without starting it.
+
+    The producer must have been started by init_kafka_producer() during
+    application startup; this getter never triggers a start.
+
+    Returns:
+        Optional[AIOKafkaProducer]: The module-level producer instance, or
+            None if Kafka is disabled or has not been initialized.
+    """
     return kafka_producer

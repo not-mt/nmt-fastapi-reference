@@ -4,6 +4,7 @@
 
 """Tests for the main FastAPI application."""
 
+import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -115,16 +116,35 @@ def test_logging_configuration(test_app_settings_with_loggers: AppSettings) -> N
     app.dependency_overrides.pop(get_app_settings)
 
 
+async def _long_running_consumer() -> None:
+    """
+    Coroutine that runs until cancelled, standing in for a Kafka consumer.
+    """
+    await asyncio.sleep(3600)
+
+
 @pytest.mark.asyncio
 async def test_lifespan() -> None:
     """
-    Test the lifespan function with Kafka and DB schema logic.
+    Test the lifespan function with Kafka and DB schema logic: init runs
+    before the readiness flag flips, one producer stop pairs with the init,
+    and consumer tasks are cancelled and awaited on shutdown.
     """
     test_app = FastAPI(lifespan=lifespan)
     mock_create_all = MagicMock()  # NOTE: DO NOT AsyncMock() THIS EVER
-    mock_consumer_task_1 = MagicMock()
-    mock_consumer_task_2 = MagicMock()
     mock_kafka_producer = AsyncMock()
+    call_order: list[str] = []
+
+    async def _init_kafka_producer() -> AsyncMock:
+        """
+        Records the init call in call_order and returns the mocked producer.
+        """
+        call_order.append("init_kafka_producer")
+        return mock_kafka_producer
+
+    # NOTE: use real asyncio tasks so cancel() and gather() behave for real
+    consumer_task_1 = asyncio.create_task(_long_running_consumer())
+    consumer_task_2 = asyncio.create_task(_long_running_consumer())
 
     with (
         patch.object(
@@ -134,26 +154,33 @@ async def test_lifespan() -> None:
         ),
         patch(
             "app.main.create_kafka_consumers",
-            return_value=[mock_consumer_task_1, mock_consumer_task_2],
+            new=AsyncMock(return_value=[consumer_task_1, consumer_task_2]),
         ),
+        patch("app.main.init_kafka_producer", new=_init_kafka_producer),
         patch(
-            "app.main.create_kafka_producer",
-            return_value=mock_kafka_producer,
+            "app.main.set_app_ready",
+            side_effect=lambda: call_order.append("set_app_ready"),
         ),
+        patch("app.main.set_app_not_ready"),
     ):
         async with LifespanManager(test_app):
             pass
 
         mock_create_all.assert_called_once()
         mock_kafka_producer.stop.assert_awaited_once()
-        mock_consumer_task_1.cancel.assert_called_once()
-        mock_consumer_task_2.cancel.assert_called_once()
+        # init must run before the readiness flag flips
+        assert call_order == ["init_kafka_producer", "set_app_ready"]
+        # consumer tasks are cancelled AND awaited to completion
+        assert consumer_task_1.done()
+        assert consumer_task_1.cancelled()
+        assert consumer_task_2.done()
+        assert consumer_task_2.cancelled()
 
 
 @pytest.mark.asyncio
 async def test_lifespan_kafka_producer_none() -> None:
     """
-    Test the lifespan function when no Kafka producer is returned.
+    Test the lifespan function when no Kafka producer is initialized.
     """
     test_app = FastAPI(lifespan=lifespan)
     mock_create_all = MagicMock()  # NOTE: DO NOT AsyncMock() THIS EVER
@@ -163,15 +190,22 @@ async def test_lifespan_kafka_producer_none() -> None:
     mock_context.run_sync = AsyncMock(side_effect=lambda f, *a, **kw: f(*a, **kw))
     mock_engine = MagicMock()
     mock_engine.begin.return_value = mock_context
-    mock_consumer_task = MagicMock()
 
     import app.main as main_module
+
+    consumer_task = asyncio.create_task(_long_running_consumer())
 
     with (
         patch.object(main_module, "async_engine", mock_engine),
         patch.object(Base.metadata, "create_all", mock_create_all),
-        patch("app.main.create_kafka_consumers", return_value=[mock_consumer_task]),
-        patch("app.main.create_kafka_producer", return_value=None),
+        patch(
+            "app.main.create_kafka_consumers",
+            new=AsyncMock(return_value=[consumer_task]),
+        ),
+        patch(
+            "app.main.init_kafka_producer",
+            new=AsyncMock(return_value=None),
+        ),
         patch("app.main.set_app_ready"),
         patch("app.main.set_app_not_ready"),
     ):
@@ -179,8 +213,47 @@ async def test_lifespan_kafka_producer_none() -> None:
             pass
 
         mock_create_all.assert_called_once()
-        # kafka_producer is None, so nothing to await
-        mock_consumer_task.cancel.assert_called_once()
+        # consumer task is cancelled and awaited to completion
+        assert consumer_task.done()
+        assert consumer_task.cancelled()
+
+
+@pytest.mark.asyncio
+async def test_lifespan_gathers_failed_consumer_task() -> None:
+    """
+    Test that lifespan shutdown completes cleanly when a consumer task has
+    failed: the gather uses return_exceptions so the exception is retrieved
+    rather than raised during shutdown.
+    """
+    test_app = FastAPI(lifespan=lifespan)
+    mock_create_all = MagicMock()  # NOTE: DO NOT AsyncMock() THIS EVER
+
+    async def _failing_consumer() -> None:
+        """
+        Coroutine that raises immediately, standing in for a failing Kafka consumer.
+        """
+        raise RuntimeError("consumer exploded")
+
+    consumer_task = asyncio.create_task(_failing_consumer())
+
+    with (
+        patch.object(Base.metadata, "create_all", mock_create_all),
+        patch(
+            "app.main.create_kafka_consumers",
+            new=AsyncMock(return_value=[consumer_task]),
+        ),
+        patch(
+            "app.main.init_kafka_producer",
+            new=AsyncMock(return_value=None),
+        ),
+        patch("app.main.set_app_ready"),
+        patch("app.main.set_app_not_ready"),
+    ):
+        async with LifespanManager(test_app):
+            pass
+
+    assert consumer_task.done()
+    assert consumer_task.exception() is not None
 
 
 def test_custom_openapi_with_swagger_authorize_url() -> None:

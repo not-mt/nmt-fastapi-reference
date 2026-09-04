@@ -4,6 +4,7 @@
 
 """Main FastAPI application setup with routers and exception handlers."""
 
+import asyncio
 import logging
 import logging.config
 import os
@@ -22,7 +23,7 @@ from nmtfast.middleware.v1.request_duration import RequestDurationMiddleware
 from nmtfast.middleware.v1.request_id import RequestIDMiddleware
 
 from app.core.v1.health import set_app_not_ready, set_app_ready
-from app.core.v1.kafka import create_kafka_consumers, create_kafka_producer
+from app.core.v1.kafka import create_kafka_consumers, init_kafka_producer
 from app.core.v1.settings import AppSettings, get_app_settings
 from app.core.v1.sqlalchemy import Base, async_engine
 from app.errors.v1.exception_handlers import (
@@ -188,7 +189,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("Starting Kafka consumers/producer (if any)...")
     consumer_tasks = await create_kafka_consumers()
-    kafka_producer = await create_kafka_producer()
+    kafka_producer = await init_kafka_producer()
 
     # NOTE: /health/readiness checks will pass after this
     set_app_ready()
@@ -203,6 +204,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await kafka_producer.stop()
     for task in consumer_tasks:
         task.cancel()
+    # NOTE: await consumer task completion after the cancellation loop so the
+    #   process exits cleanly and any failed task's exception is retrieved
+    if consumer_tasks:
+        await asyncio.gather(*consumer_tasks, return_exceptions=True)
 
     logger.info("Lifespan ended")
 

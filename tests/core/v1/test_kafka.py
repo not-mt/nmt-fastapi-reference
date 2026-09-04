@@ -12,13 +12,21 @@ from decimal import Decimal
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiokafka import AIOKafkaProducer
 from pydantic import BaseModel
-
-from app.core.v1.settings import AppSettings, KafkaSettings
 
 # NOTE: each test needs to import app.core.v1.kafka so that patching of objects
 #   like kafka_producer can succeed
+import app.core.v1.kafka as kafka_module
+
+
+@pytest.fixture(autouse=True)
+def _reset_producer_singleton():
+    """
+    Reset the module-level producer singleton before and after each test.
+    """
+    kafka_module.kafka_producer = None
+    yield
+    kafka_module.kafka_producer = None
 
 
 def test_enhanced_json_encoder():
@@ -75,9 +83,10 @@ def test_custom_serializer():
 
 
 @pytest.mark.asyncio
-async def test_kafka_producer_initialization_with_auth():
+async def test_init_kafka_producer_starts_and_caches_instance():
     """
-    Test producer is lazily created when Kafka is enabled with auth.
+    Test init_kafka_producer constructs, starts, and caches the producer
+    exactly once when Kafka is enabled with auth.
     """
     mock_producer_instance = MagicMock()
     mock_producer_instance.start = AsyncMock()
@@ -92,125 +101,63 @@ async def test_kafka_producer_initialization_with_auth():
         sasl_plain_password="pass",
     )
 
-    import app.core.v1.kafka as kafka_module
-
     with (
         patch.object(kafka_module, "_sk", mock_sk),
         patch.object(kafka_module, "_sasl_mechanism", "PLAIN"),
         patch.object(kafka_module, "_sasl_plain_username", "user"),
         patch.object(kafka_module, "_sasl_plain_password", "pass"),
         patch(
-            "app.core.v1.kafka.AIOKafkaProducer", return_value=mock_producer_instance
-        ),
+            "app.core.v1.kafka.AIOKafkaProducer",
+            return_value=mock_producer_instance,
+        ) as mock_producer_cls,
     ):
-        result = await kafka_module.create_kafka_producer()
+        result = await kafka_module.init_kafka_producer()
 
         assert result is mock_producer_instance
         assert kafka_module.kafka_producer is mock_producer_instance
-
-
-def test_kafka_producer_not_initialized_when_disabled():
-    """
-    Test producer remains None when Kafka is disabled.
-    """
-    test_app_settings = MagicMock()
-    test_app_settings.kafka = MagicMock(enabled=False)
-
-    with patch("app.core.v1.kafka.settings", test_app_settings):
-        import importlib
-
-        import app.core.v1.kafka as kafka_module
-
-        importlib.reload(kafka_module)
-
-        assert kafka_module.kafka_producer is None
+        mock_producer_cls.assert_called_once()
+        mock_producer_instance.start.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-async def test_create_kafka_producer_success():
+async def test_init_kafka_producer_disabled_returns_none():
     """
-    Test create_kafka_producer starts and returns producer when enabled.
+    Test init_kafka_producer returns None and never constructs a producer
+    when Kafka is disabled.
     """
-    # patch settings and inject a mock producer before import
-    mock_producer = AsyncMock(spec=AIOKafkaProducer)
-    mock_producer.start = AsyncMock()
-
-    test_settings = AppSettings(
-        kafka=KafkaSettings(
-            enabled=True,
-            bootstrap_servers=["localhost:9092"],
-            group_id="test-group",
-            security_protocol="SASL_PLAINTEXT",
-            sasl_mechanism="PLAIN",
-            sasl_plain_username="user",
-            sasl_plain_password="pass",
-        )
-    )
-
     with (
-        patch("app.core.v1.settings.get_app_settings", return_value=test_settings),
-        patch("app.core.v1.kafka.AIOKafkaProducer", return_value=mock_producer),
+        patch.object(kafka_module, "_sk", MagicMock(enabled=False)),
+        patch("app.core.v1.kafka.AIOKafkaProducer") as mock_producer_cls,
     ):
-        # reload after patches to trigger producer creation with mocked settings
-        import importlib
+        result = await kafka_module.init_kafka_producer()
 
-        import app.core.v1.kafka as kafka_module
-
-        importlib.reload(kafka_module)
-
-        # manually assign mock to the global so the function can use it
-        kafka_module.kafka_producer = mock_producer
-        result = await kafka_module.create_kafka_producer()
-
-        assert result is mock_producer
-        mock_producer.start.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_create_kafka_producer_disabled():
-    """
-    Test create_kafka_producer returns None when Kafka is disabled.
-    """
-    with patch("app.core.v1.kafka._sk", MagicMock(enabled=False)):
-        from app.core.v1.kafka import create_kafka_producer
-
-        result = await create_kafka_producer()
         assert result is None
+        assert kafka_module.kafka_producer is None
+        mock_producer_cls.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_create_kafka_producer_uninitialized():
+def test_get_cached_kafka_producer_returns_singleton_without_start():
     """
-    Test create_kafka_producer lazily creates the producer when None.
+    Test the cached getter returns the module-level singleton and never
+    triggers a producer start.
     """
     mock_producer_instance = MagicMock()
     mock_producer_instance.start = AsyncMock()
 
-    mock_sk = types.SimpleNamespace(
-        enabled=True,
-        bootstrap_servers=["localhost:9092"],
-        group_id="test-group",
-        security_protocol="PLAINTEXT",
-        sasl_mechanism="PLAIN",
-        sasl_plain_username="",
-        sasl_plain_password="",
-    )
-
-    import app.core.v1.kafka as kafka_mod
-
-    with (
-        patch.object(kafka_mod, "_sk", mock_sk),
-        patch.object(kafka_mod, "_sasl_mechanism", "PLAIN"),
-        patch.object(kafka_mod, "_sasl_plain_username", ""),
-        patch.object(kafka_mod, "_sasl_plain_password", ""),
-        patch.object(kafka_mod, "kafka_producer", None),
-        patch(
-            "app.core.v1.kafka.AIOKafkaProducer", return_value=mock_producer_instance
-        ),
-    ):
-        result = await kafka_mod.create_kafka_producer()
+    with patch.object(kafka_module, "kafka_producer", mock_producer_instance):
+        result = kafka_module.get_cached_kafka_producer()
 
         assert result is mock_producer_instance
+        mock_producer_instance.start.assert_not_called()
+
+
+def test_get_cached_kafka_producer_returns_none_when_uninitialized():
+    """
+    Test the cached getter returns None when the producer has not been
+    initialized.
+    """
+    with patch.object(kafka_module, "kafka_producer", None):
+        assert kafka_module.get_cached_kafka_producer() is None
 
 
 @pytest.mark.asyncio
