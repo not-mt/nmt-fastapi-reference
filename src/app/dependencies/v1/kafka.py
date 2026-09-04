@@ -5,27 +5,19 @@
 """Dependencies related to Kafka."""
 
 from aiokafka import AIOKafkaProducer
-from fastapi import Depends
 
-from app.core.v1.kafka import create_kafka_producer
-from app.core.v1.settings import AppSettings, get_app_settings
+from app.core.v1.kafka import get_cached_kafka_producer
 
 
-async def get_kafka_producer(
-    settings: AppSettings = Depends(get_app_settings),
-) -> AIOKafkaProducer | None:
+def get_kafka_producer() -> AIOKafkaProducer | None:
     """
     Provide dependency access to the Kafka producer.
 
-    Lazily initializes the producer on first use by delegating to
-    create_kafka_producer(), which caches the instance as a module-level
-    singleton. Subsequent calls reuse the already-started producer.
-
-    Args:
-        settings: The application settings.
+    Returns the producer started during application startup via the cached
+    getter; this dependency never starts the producer itself.
 
     Returns:
         AIOKafkaProducer | None: An async Kafka producer, or None if Kafka support
             is not enabled.
     """
-    return await create_kafka_producer()
+    return get_cached_kafka_producer()
