@@ -136,6 +136,9 @@ async def test_lifespan() -> None:
     call_order: list[str] = []
 
     async def _init_kafka_producer() -> AsyncMock:
+        """
+        Records the init call in call_order and returns the mocked producer.
+        """
         call_order.append("init_kafka_producer")
         return mock_kafka_producer
 
@@ -226,6 +229,9 @@ async def test_lifespan_gathers_failed_consumer_task() -> None:
     mock_create_all = MagicMock()  # NOTE: DO NOT AsyncMock() THIS EVER
 
     async def _failing_consumer() -> None:
+        """
+        Coroutine that raises immediately, standing in for a failing Kafka consumer.
+        """
         raise RuntimeError("consumer exploded")
 
     consumer_task = asyncio.create_task(_failing_consumer())
