@@ -1,3 +1,7 @@
+## v1.7.1 (2026-09-04)
+
+    - **fix(kafka)**: start producer once in lifespan (#157) (6f4abd1)
+
 ## v1.7.0 (2026-08-03)
 
 - **feat(auth)**: add username to ACL audit log messages (#146) (528a9c0)
